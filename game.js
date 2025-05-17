@@ -630,159 +630,10 @@ class Game {
         
         // Start game loop
         this.gameLoop();
-
-        // Add leaderboard properties
-        this.leaderboard = [];
-        this.playerName = localStorage.getItem('playerName') || '';
-        this.leaderboardUrl = 'https://raw.githubusercontent.com/sirsyorrz/sea-of-thieves-leaderboard/main/leaderboard.json';
-        this.leaderboardUpdateUrl = 'https://api.github.com/repos/sirsyorrz/sea-of-thieves-leaderboard/contents/leaderboard.json';
-        this.githubToken = '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';
-        this.leaderboardUpdateInterval = null;
-        this.lastLeaderboardUpdate = 0;
-        this.updateCooldown = 5000; // 5 seconds cooldown between updates
-
-        // Create leaderboard elements
-        this.leaderboardOverlay = document.createElement('div');
-        this.leaderboardOverlay.style.position = 'fixed';
-        this.leaderboardOverlay.style.top = '0';
-        this.leaderboardOverlay.style.left = '0';
-        this.leaderboardOverlay.style.width = '100%';
-        this.leaderboardOverlay.style.height = '100%';
-        this.leaderboardOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-        this.leaderboardOverlay.style.display = 'none';
-        this.leaderboardOverlay.style.zIndex = '9999';
-        document.body.appendChild(this.leaderboardOverlay);
-
-        this.leaderboardElement = document.createElement('div');
-        this.leaderboardElement.style.position = 'fixed';
-        this.leaderboardElement.style.top = '50%';
-        this.leaderboardElement.style.left = '50%';
-        this.leaderboardElement.style.transform = 'translate(-50%, -50%)';
-        this.leaderboardElement.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
-        this.leaderboardElement.style.padding = '20px';
-        this.leaderboardElement.style.borderRadius = '10px';
-        this.leaderboardElement.style.color = 'white';
-        this.leaderboardElement.style.fontFamily = 'Arial';
-        this.leaderboardElement.style.display = 'none';
-        this.leaderboardElement.style.zIndex = '10000';
-        this.leaderboardElement.style.maxHeight = '80vh';
-        this.leaderboardElement.style.overflowY = 'auto';
-        this.leaderboardElement.style.minWidth = '400px';
-        document.body.appendChild(this.leaderboardElement);
-
-        // Add keyboard event listener for leaderboard
-        window.addEventListener('keydown', (e) => {
-            if (e.key.toLowerCase() === 'l') {
-                this.toggleLeaderboard();
-            }
-        });
-
-        // Load initial leaderboard data
-        this.loadLeaderboard();
-
-        // Start auto-update interval
-        this.startLeaderboardUpdates();
-    }
-
-    startLeaderboardUpdates() {
-        // Update every 30 seconds instead of 15
-        this.leaderboardUpdateInterval = setInterval(() => {
-            this.loadLeaderboard();
-        }, 30000);
-    }
-
-    async loadLeaderboard() {
-        try {
-            const response = await fetch(this.leaderboardUrl, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-            const data = await response.json();
-            this.leaderboard = data.entries;
-            this.updateLeaderboardDisplay();
-        } catch (error) {
-            console.error('Error loading leaderboard:', error);
-            this.showNotification('Failed to load leaderboard');
-        }
-    }
-
-    async updateLeaderboard() {
-        if (!this.playerName) return;
-
-        // Check cooldown
-        const now = Date.now();
-        if (now - this.lastLeaderboardUpdate < this.updateCooldown) {
-            return;
-        }
-        this.lastLeaderboardUpdate = now;
-
-        try {
-            // Get current leaderboard and its SHA
-            const response = await fetch(this.leaderboardUpdateUrl, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Authorization': `token ${this.githubToken}`
-                }
-            });
-            const fileData = await response.json();
-            const currentContent = JSON.parse(atob(fileData.content));
-            
-            // Check if player already has an entry
-            const existingEntry = currentContent.entries.find(entry => entry.name === this.playerName);
-            if (existingEntry) {
-                // Only update if the new score is higher
-                if (this.gold > existingEntry.gold) {
-                    existingEntry.gold = this.gold;
-                } else {
-                    return; // Don't update if score isn't higher
-                }
-            } else {
-                // Add new entry
-                currentContent.entries.push({
-                    id: Date.now().toString(),
-                    name: this.playerName,
-                    gold: this.gold
-                });
-            }
-
-            // Update the file on GitHub
-            const updateResponse = await fetch(this.leaderboardUpdateUrl, {
-                method: 'PUT',
-                headers: {
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Authorization': `token ${this.githubToken}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    message: `Update leaderboard for ${this.playerName}`,
-                    content: btoa(JSON.stringify(currentContent, null, 2)),
-                    sha: fileData.sha
-                })
-            });
-
-            if (!updateResponse.ok) {
-                throw new Error('Failed to update leaderboard');
-            }
-
-            // Update local display
-            this.leaderboard = currentContent.entries;
-            this.updateLeaderboardDisplay();
-        } catch (error) {
-            console.error('Error updating leaderboard:', error);
-            this.showNotification('Error updating leaderboard');
-        }
     }
 
     updateGoldDisplay() {
         this.goldElement.textContent = `${this.gold} Gold`;
-        
-        // Update leaderboard if player has a name
-        if (this.playerName) {
-            this.updateLeaderboard();
-        }
     }
 
     setPlayerName() {
@@ -1788,11 +1639,6 @@ class Game {
                 this.updateCargoDisplay();
                 this.showNotification('Cargo dropped into the water!');
             }
-        }
-
-        // Update leaderboard when gold changes
-        if (this.playerName) {
-            this.updateLeaderboard();
         }
     }
     
