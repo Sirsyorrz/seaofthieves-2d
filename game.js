@@ -1573,8 +1573,50 @@ class Game {
                             q.status === 'active' && q.destinationOutpost === island.name
                         );
 
+                        // Process each quest individually
                         for (const quest of deliverableQuests) {
-                            this.completeQuest(quest.id);
+                            // Check if we have all required items for this specific quest
+                            const hasAllItems = quest.commodities.every(questItem => {
+                                const cargoItem = this.cargo.items.find(item => item.name === questItem.name);
+                                return cargoItem && cargoItem.quantity >= questItem.quantity;
+                            });
+
+                            if (hasAllItems) {
+                                // Remove only the items needed for this specific quest
+                                quest.commodities.forEach(questItem => {
+                                    const cargoItem = this.cargo.items.find(item => item.name === questItem.name);
+                                    if (cargoItem) {
+                                        cargoItem.quantity -= questItem.quantity;
+                                        if (cargoItem.quantity <= 0) {
+                                            this.cargo.items = this.cargo.items.filter(item => item.name !== questItem.name);
+                                        }
+                                    }
+                                });
+
+                                // Update cargo weight
+                                this.cargo.currentWeight = this.cargo.items.reduce((sum, item) => 
+                                    sum + (item.weight * item.quantity), 0);
+
+                                // Add reward to gold
+                                this.gold += quest.reward;
+                                this.updateGoldDisplay();
+
+                                // Move quest to completed
+                                this.merchantQuests.activeQuests = this.merchantQuests.activeQuests.filter(q => q.id !== quest.id);
+                                this.merchantQuests.completedQuests.push({
+                                    ...quest,
+                                    status: 'completed'
+                                });
+
+                                // Generate a new quest for the outpost if needed
+                                if (this.merchantQuests.outpostQuests[quest.startOutpost].length < 3) {
+                                    const newQuest = this.generateMerchantQuest(quest.startOutpost);
+                                    this.merchantQuests.outpostQuests[quest.startOutpost].push(newQuest);
+                                }
+
+                                // Show reward message
+                                this.showNotification(`Quest completed! You received ${quest.reward} gold!`);
+                            }
                         }
 
                         break;
