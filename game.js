@@ -61,7 +61,7 @@ class Game {
         
         // Load images
         this.mapImage = new Image();
-        this.mapImage.src = '/seaofthieves-2d/assets/background.png';
+        this.mapImage.src = './assets/background.png';
         this.mapImage.onload = () => {
             // Create a temporary canvas to get image data
             const tempCanvas = document.createElement('canvas');
@@ -76,15 +76,17 @@ class Game {
             this.scanForIslands();
             console.log('Background image loaded and islands mapped');
         };
-        this.mapImage.onerror = () => {
-            console.error('Failed to load background image');
+        this.mapImage.onerror = (e) => {
+            console.error('Failed to load background image:', e);
+            console.log('Attempted to load from:', this.mapImage.src);
             this.showNotification('Failed to load background image. Please refresh the page.');
         };
         
         this.boatImage = new Image();
-        this.boatImage.src = '/seaofthieves-2d/assets/boat.png';
-        this.boatImage.onerror = () => {
-            console.error('Failed to load boat image');
+        this.boatImage.src = './assets/boat.png';
+        this.boatImage.onerror = (e) => {
+            console.error('Failed to load boat image:', e);
+            console.log('Attempted to load from:', this.boatImage.src);
             this.showNotification('Failed to load boat image. Please refresh the page.');
         };
         
