@@ -632,12 +632,12 @@ class Game {
         this.gameLoop();
 
         // Add leaderboard properties
-        this.leaderboard = [];
+        this.leaderboard = JSON.parse(localStorage.getItem('leaderboard')) || [];
         this.playerName = localStorage.getItem('playerName') || '';
-        this.isAdmin = false;
-        this.adminPassword = 'admin123'; // Change this to your desired admin password
+        this.isAdmin = localStorage.getItem('isAdmin') === 'true';
+        this.adminPassword = 'admin123';
         this.leaderboardUrl = 'https://raw.githubusercontent.com/sirsyorrz/sea-of-thieves-leaderboard/main/leaderboard.json';
-        this.leaderboardUpdateInterval = null; // For storing the interval ID
+        this.leaderboardUpdateInterval = null;
         this.lastSyncTime = localStorage.getItem('lastLeaderboardSync') || 0;
         this.localLeaderboard = JSON.parse(localStorage.getItem('localLeaderboard')) || { entries: [], lastUpdate: '' };
         this.leaderboardState = {
@@ -699,10 +699,10 @@ class Game {
             clearInterval(this.leaderboardUpdateInterval);
         }
 
-        // Update every minute (60000 milliseconds)
+        // Update every 30 seconds (30000 milliseconds)
         this.leaderboardUpdateInterval = setInterval(() => {
             this.syncLeaderboard();
-        }, 60000);
+        }, 30000);
 
         // Initial sync
         this.syncLeaderboard();
@@ -710,26 +710,23 @@ class Game {
 
     async syncLeaderboard() {
         try {
-            // Only fetch from server if it's been more than 5 minutes since last sync
-            const now = Date.now();
-            if (now - this.lastSyncTime > 300000) { // 5 minutes
-                const response = await fetch(this.leaderboardUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json'
-                    }
-                });
-                const serverData = await response.json();
-                
-                // Merge server data with local data
-                this.mergeLeaderboardData(serverData);
-                
-                // Update last sync time
-                this.lastSyncTime = now;
-                localStorage.setItem('lastLeaderboardSync', now);
-            }
+            // Always fetch from server to get latest data
+            const response = await fetch(this.leaderboardUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            const serverData = await response.json();
+            
+            // Merge server data with local data
+            this.mergeLeaderboardData(serverData);
+            
+            // Update last sync time
+            this.lastSyncTime = Date.now();
+            localStorage.setItem('lastLeaderboardSync', this.lastSyncTime);
 
-            // Always update local display
+            // Update display
             this.updateLeaderboardDisplay();
         } catch (error) {
             console.error('Error syncing leaderboard:', error);
@@ -753,50 +750,109 @@ class Game {
             }
         });
 
-        // Update local leaderboard
+        // Update leaderboard
         this.leaderboard = mergedEntries;
         this.localLeaderboard.entries = mergedEntries;
         this.localLeaderboard.lastUpdate = new Date().toISOString();
         
         // Save to localStorage
+        localStorage.setItem('leaderboard', JSON.stringify(this.leaderboard));
         localStorage.setItem('localLeaderboard', JSON.stringify(this.localLeaderboard));
     }
 
     async updateLeaderboard() {
         if (!this.playerName) return;
 
-        // Update local entry
-        const existingEntry = this.leaderboard.find(entry => entry.name === this.playerName);
-        if (existingEntry) {
-            // Only update if the new score is higher
-            if (this.gold > existingEntry.gold) {
-                existingEntry.gold = this.gold;
+        try {
+            // Update local entry
+            const existingEntry = this.leaderboard.find(entry => entry.name === this.playerName);
+            if (existingEntry) {
+                // Only update if the new score is higher
+                if (this.gold > existingEntry.gold) {
+                    existingEntry.gold = this.gold;
+                }
+            } else {
+                this.leaderboard.push({
+                    id: Date.now().toString(),
+                    name: this.playerName,
+                    gold: this.gold
+                });
             }
-        } else {
-            this.leaderboard.push({
-                id: Date.now().toString(),
-                name: this.playerName,
-                gold: this.gold
-            });
+
+            // Save to localStorage
+            localStorage.setItem('leaderboard', JSON.stringify(this.leaderboard));
+
+            // Update local storage
+            this.localLeaderboard.entries = this.leaderboard;
+            this.localLeaderboard.lastUpdate = new Date().toISOString();
+            localStorage.setItem('localLeaderboard', JSON.stringify(this.localLeaderboard));
+
+            // If admin, update server
+            if (this.isAdmin && this.githubToken) {
+                try {
+                    const response = await fetch(this.leaderboardUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+                    const serverData = await response.json();
+                    
+                    // Update server data with new entry
+                    const serverEntry = serverData.entries.find(entry => entry.name === this.playerName);
+                    if (serverEntry) {
+                        serverEntry.gold = Math.max(serverEntry.gold, this.gold);
+                    } else {
+                        serverData.entries.push({
+                            id: Date.now().toString(),
+                            name: this.playerName,
+                            gold: this.gold
+                        });
+                    }
+                    
+                    // Update server
+                    const updateResponse = await fetch(this.leaderboardUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `token ${this.githubToken}`,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/vnd.github.v3+json'
+                        },
+                        body: JSON.stringify({
+                            message: 'Update leaderboard',
+                            content: btoa(JSON.stringify(serverData, null, 2)),
+                            sha: response.headers.get('etag')
+                        })
+                    });
+                    
+                    if (!updateResponse.ok) {
+                        throw new Error('Failed to update server');
+                    }
+                } catch (error) {
+                    console.error('Error updating server:', error);
+                    this.showNotification('Failed to update server leaderboard');
+                }
+            }
+
+            // Update display
+            this.updateLeaderboardDisplay();
+
+            // Force a sync with server
+            this.syncLeaderboard();
+        } catch (error) {
+            console.error('Error updating leaderboard:', error);
+            this.showNotification('Error updating leaderboard');
         }
-
-        // Update local storage
-        this.localLeaderboard.entries = this.leaderboard;
-        this.localLeaderboard.lastUpdate = new Date().toISOString();
-        localStorage.setItem('localLeaderboard', JSON.stringify(this.localLeaderboard));
-
-        // Update display
-        this.updateLeaderboardDisplay();
-
-        // Force a sync with server
-        this.syncLeaderboard();
     }
 
     async removeFromLeaderboard(id) {
         if (!this.isAdmin) return;
 
-        // Remove from local leaderboard
+        // Remove from leaderboard
         this.leaderboard = this.leaderboard.filter(entry => entry.id !== id);
+        
+        // Save to localStorage
+        localStorage.setItem('leaderboard', JSON.stringify(this.leaderboard));
         
         // Update local storage
         this.localLeaderboard.entries = this.leaderboard;
@@ -854,7 +910,8 @@ class Game {
                     ${this.isAdmin ? `
                         <td style="padding: 10px; text-align: center;">
                             <button onclick="game.removeFromLeaderboard('${entry.id}')"
-                                style="padding: 3px 8px; background: #ff4444; border: none; color: white; cursor: pointer;">
+                                style="padding: 3px 8px; background: #ff4444; border: none; color: white; cursor: pointer; 
+                                ${isSelected ? 'border: 2px solid #ffd700;' : ''}">
                                 Remove
                             </button>
                         </td>
@@ -863,7 +920,7 @@ class Game {
             `;
         });
 
-        const buttonCount = this.isAdmin ? 1 : 2; // Close button + (Admin Login or Save Name)
+        const buttonCount = this.isAdmin ? 1 : 2;
         const closeButtonIndex = sortedLeaderboard.length + (this.playerName ? 0 : 1);
         const adminButtonIndex = closeButtonIndex + 1;
 
@@ -886,6 +943,7 @@ class Game {
             </div>
             <div style="margin-top: 10px; text-align: center; color: #888; font-size: 12px;">
                 Use ↑↓ arrows to navigate, Enter to select, Esc to close
+                ${this.isAdmin ? '<br>As admin: Select an entry and press Enter to remove it' : ''}
             </div>
         `;
 
@@ -938,7 +996,9 @@ class Game {
             // Remove entry selected
             const selectedEntry = sortedLeaderboard[this.leaderboardState.selectedIndex - (this.playerName ? 0 : 1)];
             if (selectedEntry) {
-                this.removeFromLeaderboard(selectedEntry.id);
+                if (confirm(`Are you sure you want to remove ${selectedEntry.name}'s score of ${selectedEntry.gold}?`)) {
+                    this.removeFromLeaderboard(selectedEntry.id);
+                }
             }
         }
     }
@@ -1060,6 +1120,7 @@ class Game {
             if (token) {
                 this.isAdmin = true;
                 this.githubToken = token;
+                localStorage.setItem('isAdmin', 'true');
                 this.updateLeaderboardDisplay();
                 this.showNotification('Admin access granted');
             } else {
