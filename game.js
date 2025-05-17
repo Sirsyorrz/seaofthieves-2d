@@ -630,6 +630,52 @@ class Game {
         
         // Start game loop
         this.gameLoop();
+
+        // Add leaderboard properties
+        this.leaderboard = [];
+        this.playerName = '';
+        this.isAdmin = false;
+        this.adminPassword = 'admin123'; // Change this to your desired admin password
+        this.leaderboardUrl = 'https://raw.githubusercontent.com/sirsyorrz/sea-of-thieves-leaderboard/main/leaderboard.json';
+        this.leaderboardUpdateUrl = 'https://api.github.com/repos/sirsyorrz/sea-of-thieves-leaderboard/contents/leaderboard.json';
+
+        // Create leaderboard overlay
+        this.leaderboardOverlay = document.createElement('div');
+        this.leaderboardOverlay.style.position = 'fixed';
+        this.leaderboardOverlay.style.top = '0';
+        this.leaderboardOverlay.style.left = '0';
+        this.leaderboardOverlay.style.width = '100%';
+        this.leaderboardOverlay.style.height = '100%';
+        this.leaderboardOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        this.leaderboardOverlay.style.display = 'none';
+        this.leaderboardOverlay.style.zIndex = '9999';
+        document.body.appendChild(this.leaderboardOverlay);
+
+        // Create leaderboard element
+        this.leaderboardElement = document.createElement('div');
+        this.leaderboardElement.style.position = 'fixed';
+        this.leaderboardElement.style.top = '50%';
+        this.leaderboardElement.style.left = '50%';
+        this.leaderboardElement.style.transform = 'translate(-50%, -50%)';
+        this.leaderboardElement.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+        this.leaderboardElement.style.padding = '20px';
+        this.leaderboardElement.style.borderRadius = '10px';
+        this.leaderboardElement.style.color = 'white';
+        this.leaderboardElement.style.fontFamily = 'Arial';
+        this.leaderboardElement.style.display = 'none';
+        this.leaderboardElement.style.zIndex = '10000';
+        this.leaderboardElement.style.minWidth = '400px';
+        document.body.appendChild(this.leaderboardElement);
+
+        // Add event listener for 'L' key
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'l') {
+                this.toggleLeaderboard();
+            }
+        });
+
+        // Load initial leaderboard data
+        this.loadLeaderboard();
     }
     
     setupEventListeners() {
@@ -1573,6 +1619,11 @@ class Game {
                 this.showNotification('Cargo dropped into the water!');
             }
         }
+
+        // Update leaderboard when gold changes
+        if (this.playerName) {
+            this.updateLeaderboard();
+        }
     }
     
     draw() {
@@ -1741,6 +1792,243 @@ class Game {
         setTimeout(() => {
             this.notificationElement.style.display = 'none';
         }, duration);
+    }
+
+    // Add new methods for leaderboard functionality
+    toggleLeaderboard() {
+        const isVisible = this.leaderboardOverlay.style.display === 'block';
+        this.leaderboardOverlay.style.display = isVisible ? 'none' : 'block';
+        this.leaderboardElement.style.display = isVisible ? 'none' : 'block';
+        if (!isVisible) {
+            this.updateLeaderboardDisplay();
+        }
+    }
+
+    updateLeaderboardDisplay() {
+        // Sort leaderboard by gold
+        const sortedLeaderboard = [...this.leaderboard].sort((a, b) => b.gold - a.gold);
+        
+        let html = `
+            <h2 style="margin-top: 0; color: #ffd700;">Leaderboard</h2>
+            <div style="margin-bottom: 20px;">
+        `;
+
+        if (!this.playerName) {
+            html += `
+                <div style="margin-bottom: 20px;">
+                    <input type="text" id="playerNameInput" placeholder="Enter your name" 
+                        style="padding: 5px; width: 200px; margin-right: 10px;">
+                    <button onclick="game.setPlayerName()" 
+                        style="padding: 5px 10px; background: #4CAF50; border: none; color: white; cursor: pointer;">
+                        Save Name
+                    </button>
+                </div>
+            `;
+        }
+
+        html += `
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr style="background: rgba(255, 215, 0, 0.2);">
+                    <th style="padding: 10px; text-align: left;">Rank</th>
+                    <th style="padding: 10px; text-align: left;">Name</th>
+                    <th style="padding: 10px; text-align: right;">Gold</th>
+                    ${this.isAdmin ? '<th style="padding: 10px; text-align: center;">Actions</th>' : ''}
+                </tr>
+        `;
+
+        sortedLeaderboard.forEach((entry, index) => {
+            html += `
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                    <td style="padding: 10px;">${index + 1}</td>
+                    <td style="padding: 10px;">${entry.name}</td>
+                    <td style="padding: 10px; text-align: right;">${entry.gold}</td>
+                    ${this.isAdmin ? `
+                        <td style="padding: 10px; text-align: center;">
+                            <button onclick="game.removeFromLeaderboard('${entry.id}')"
+                                style="padding: 3px 8px; background: #ff4444; border: none; color: white; cursor: pointer;">
+                                Remove
+                            </button>
+                        </td>
+                    ` : ''}
+                </tr>
+            `;
+        });
+
+        html += `
+            </table>
+            <div style="margin-top: 20px; text-align: center;">
+                <button onclick="game.toggleLeaderboard()" 
+                    style="padding: 8px 20px; background: #666; border: none; color: white; cursor: pointer;">
+                    Close
+                </button>
+                ${!this.isAdmin ? `
+                    <button onclick="game.toggleAdminLogin()" 
+                        style="padding: 8px 20px; background: #444; border: none; color: white; cursor: pointer; margin-left: 10px;">
+                        Admin Login
+                    </button>
+                ` : ''}
+            </div>
+        `;
+
+        this.leaderboardElement.innerHTML = html;
+    }
+
+    setPlayerName() {
+        const input = document.getElementById('playerNameInput');
+        if (input && input.value.trim()) {
+            this.playerName = input.value.trim();
+            localStorage.setItem('playerName', this.playerName);
+            this.updateLeaderboard();
+            this.updateLeaderboardDisplay();
+        }
+    }
+
+    updateLeaderboard() {
+        if (!this.playerName) return;
+
+        const existingEntry = this.leaderboard.find(entry => entry.name === this.playerName);
+        if (existingEntry) {
+            existingEntry.gold = this.gold;
+        } else {
+            this.leaderboard.push({
+                id: Date.now().toString(),
+                name: this.playerName,
+                gold: this.gold
+            });
+        }
+
+        localStorage.setItem('leaderboard', JSON.stringify(this.leaderboard));
+    }
+
+    removeFromLeaderboard(id) {
+        if (!this.isAdmin) return;
+        
+        this.leaderboard = this.leaderboard.filter(entry => entry.id !== id);
+        localStorage.setItem('leaderboard', JSON.stringify(this.leaderboard));
+        this.updateLeaderboardDisplay();
+    }
+
+    toggleAdminLogin() {
+        const password = prompt('Enter admin password:');
+        if (password === this.adminPassword) {
+            const token = prompt('Enter GitHub token:');
+            if (token) {
+                this.isAdmin = true;
+                this.githubToken = token;
+                this.updateLeaderboardDisplay();
+            } else {
+                alert('GitHub token required for admin access');
+            }
+        } else {
+            alert('Invalid password');
+        }
+    }
+
+    async loadLeaderboard() {
+        try {
+            const response = await fetch(this.leaderboardUrl);
+            const data = await response.json();
+            this.leaderboard = data.entries;
+            this.updateLeaderboardDisplay();
+        } catch (error) {
+            console.error('Error loading leaderboard:', error);
+            this.showNotification('Failed to load leaderboard');
+        }
+    }
+
+    async updateLeaderboard() {
+        if (!this.playerName) return;
+
+        try {
+            // First, get the current content and SHA
+            const response = await fetch(this.leaderboardUpdateUrl);
+            const fileData = await response.json();
+            const currentContent = atob(fileData.content);
+            const currentData = JSON.parse(currentContent);
+
+            // Update the leaderboard data
+            const existingEntry = currentData.entries.find(entry => entry.name === this.playerName);
+            if (existingEntry) {
+                existingEntry.gold = this.gold;
+            } else {
+                currentData.entries.push({
+                    id: Date.now().toString(),
+                    name: this.playerName,
+                    gold: this.gold
+                });
+            }
+            currentData.lastUpdate = new Date().toISOString();
+
+            // Prepare the update
+            const updateData = {
+                message: `Update leaderboard for ${this.playerName}`,
+                content: btoa(JSON.stringify(currentData, null, 2)),
+                sha: fileData.sha
+            };
+
+            // Send the update
+            const updateResponse = await fetch(this.leaderboardUpdateUrl, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${this.githubToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updateData)
+            });
+
+            if (updateResponse.ok) {
+                this.leaderboard = currentData.entries;
+                this.updateLeaderboardDisplay();
+            } else {
+                throw new Error('Failed to update leaderboard');
+            }
+        } catch (error) {
+            console.error('Error updating leaderboard:', error);
+            this.showNotification('Failed to update leaderboard');
+        }
+    }
+
+    async removeFromLeaderboard(id) {
+        if (!this.isAdmin) return;
+
+        try {
+            // Get current content and SHA
+            const response = await fetch(this.leaderboardUpdateUrl);
+            const fileData = await response.json();
+            const currentContent = atob(fileData.content);
+            const currentData = JSON.parse(currentContent);
+
+            // Remove the entry
+            currentData.entries = currentData.entries.filter(entry => entry.id !== id);
+            currentData.lastUpdate = new Date().toISOString();
+
+            // Prepare the update
+            const updateData = {
+                message: `Remove entry from leaderboard`,
+                content: btoa(JSON.stringify(currentData, null, 2)),
+                sha: fileData.sha
+            };
+
+            // Send the update
+            const updateResponse = await fetch(this.leaderboardUpdateUrl, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${this.githubToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updateData)
+            });
+
+            if (updateResponse.ok) {
+                this.leaderboard = currentData.entries;
+                this.updateLeaderboardDisplay();
+            } else {
+                throw new Error('Failed to remove entry');
+            }
+        } catch (error) {
+            console.error('Error removing entry:', error);
+            this.showNotification('Failed to remove entry');
+        }
     }
 }
 
