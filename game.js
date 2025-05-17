@@ -634,55 +634,14 @@ class Game {
         // Add leaderboard properties
         this.leaderboard = [];
         this.playerName = localStorage.getItem('playerName') || '';
-        this.isAdmin = localStorage.getItem('isAdmin') === 'true';
-        this.adminPassword = 'admin123';
         this.leaderboardUrl = 'https://raw.githubusercontent.com/sirsyorrz/sea-of-thieves-leaderboard/main/leaderboard.json';
+        this.leaderboardUpdateUrl = 'https://api.github.com/repos/sirsyorrz/sea-of-thieves-leaderboard/contents/leaderboard.json';
+        // Use a single token for all updates
+        this.githubToken = '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'; // Replace this with your actual token
         this.leaderboardUpdateInterval = null;
-        this.lastSyncTime = localStorage.getItem('lastLeaderboardSync') || 0;
-        this.localLeaderboard = JSON.parse(localStorage.getItem('localLeaderboard')) || { entries: [], lastUpdate: '' };
-        this.leaderboardState = {
-            selectedIndex: 0,
-            isNameInput: false,
-            isAdminLogin: false
-        };
-
-        // Create leaderboard overlay
-        this.leaderboardOverlay = document.createElement('div');
-        this.leaderboardOverlay.style.position = 'fixed';
-        this.leaderboardOverlay.style.top = '0';
-        this.leaderboardOverlay.style.left = '0';
-        this.leaderboardOverlay.style.width = '100%';
-        this.leaderboardOverlay.style.height = '100%';
-        this.leaderboardOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-        this.leaderboardOverlay.style.display = 'none';
-        this.leaderboardOverlay.style.zIndex = '9999';
-        document.body.appendChild(this.leaderboardOverlay);
-
-        // Create leaderboard element
-        this.leaderboardElement = document.createElement('div');
-        this.leaderboardElement.style.position = 'fixed';
-        this.leaderboardElement.style.top = '50%';
-        this.leaderboardElement.style.left = '50%';
-        this.leaderboardElement.style.transform = 'translate(-50%, -50%)';
-        this.leaderboardElement.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
-        this.leaderboardElement.style.padding = '20px';
-        this.leaderboardElement.style.borderRadius = '10px';
-        this.leaderboardElement.style.color = 'white';
-        this.leaderboardElement.style.fontFamily = 'Arial';
-        this.leaderboardElement.style.display = 'none';
-        this.leaderboardElement.style.zIndex = '10000';
-        this.leaderboardElement.style.minWidth = '400px';
-        document.body.appendChild(this.leaderboardElement);
-
-        // Add event listener for 'L' key
-        window.addEventListener('keydown', (e) => {
-            if (e.key.toLowerCase() === 'l') {
-                this.toggleLeaderboard();
-            }
-        });
 
         // Load initial leaderboard data
-        this.loadInitialLeaderboard();
+        this.loadLeaderboard();
 
         // Add keyboard navigation for leaderboard
         window.addEventListener('keydown', (e) => {
@@ -690,128 +649,113 @@ class Game {
                 this.handleLeaderboardKeydown(e);
             }
         });
-    }
 
-    async loadInitialLeaderboard() {
-        try {
-            // Try to load from server first
-            const response = await fetch(this.leaderboardUrl, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-            const serverData = await response.json();
-            this.leaderboard = serverData.entries;
-        } catch (error) {
-            console.error('Error loading initial leaderboard:', error);
-            // If server load fails, use local data
-            this.leaderboard = this.localLeaderboard.entries;
-        }
-
-        // Start update timer
+        // Start auto-update interval
         this.startLeaderboardUpdates();
     }
 
-    async syncLeaderboard() {
+    startLeaderboardUpdates() {
+        // Update every 15 seconds
+        this.leaderboardUpdateInterval = setInterval(() => {
+            this.loadLeaderboard();
+        }, 15000);
+    }
+
+    async loadLeaderboard() {
         try {
-            // Fetch from server
             const response = await fetch(this.leaderboardUrl, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json'
                 }
             });
-            const serverData = await response.json();
-            
-            // Merge server data with local data
-            this.mergeLeaderboardData(serverData);
-            
-            // Update last sync time
-            this.lastSyncTime = Date.now();
-            localStorage.setItem('lastLeaderboardSync', this.lastSyncTime);
-
-            // Update display
+            const data = await response.json();
+            this.leaderboard = data.entries;
             this.updateLeaderboardDisplay();
         } catch (error) {
-            console.error('Error syncing leaderboard:', error);
-            // Continue with local data if server sync fails
-            this.updateLeaderboardDisplay();
+            console.error('Error loading leaderboard:', error);
+            this.showNotification('Failed to load leaderboard');
         }
-    }
-
-    mergeLeaderboardData(serverData) {
-        // Merge server entries with local entries
-        const mergedEntries = [...serverData.entries];
-        
-        // Add local entries that aren't on server
-        this.localLeaderboard.entries.forEach(localEntry => {
-            const serverEntry = mergedEntries.find(entry => entry.name === localEntry.name);
-            if (!serverEntry) {
-                mergedEntries.push(localEntry);
-            } else {
-                // Keep the higher score between server and local
-                serverEntry.gold = Math.max(serverEntry.gold, localEntry.gold);
-            }
-        });
-
-        // Update leaderboard
-        this.leaderboard = mergedEntries;
-        this.localLeaderboard.entries = mergedEntries;
-        this.localLeaderboard.lastUpdate = new Date().toISOString();
-        
-        // Save to localStorage
-        localStorage.setItem('localLeaderboard', JSON.stringify(this.localLeaderboard));
     }
 
     async updateLeaderboard() {
         if (!this.playerName) return;
 
         try {
-            // Update local entry
-            const existingEntry = this.leaderboard.find(entry => entry.name === this.playerName);
+            // Get current leaderboard and its SHA
+            const response = await fetch(this.leaderboardUpdateUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Authorization': `token ${this.githubToken}`
+
+                }
+            });
+            const fileData = await response.json();
+            const currentContent = JSON.parse(atob(fileData.content));
+            
+            // Check if player already has an entry
+            const existingEntry = currentContent.entries.find(entry => entry.name === this.playerName);
             if (existingEntry) {
                 // Only update if the new score is higher
                 if (this.gold > existingEntry.gold) {
                     existingEntry.gold = this.gold;
                 }
             } else {
-                this.leaderboard.push({
+                // Add new entry
+                currentContent.entries.push({
                     id: Date.now().toString(),
                     name: this.playerName,
                     gold: this.gold
                 });
             }
 
-            // Update local storage
-            this.localLeaderboard.entries = this.leaderboard;
-            this.localLeaderboard.lastUpdate = new Date().toISOString();
-            localStorage.setItem('localLeaderboard', JSON.stringify(this.localLeaderboard));
+            // Update the file on GitHub
+            const updateResponse = await fetch(this.leaderboardUpdateUrl, {
+                method: 'PUT',
+                headers: {
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Authorization': `token ${this.githubToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: `Update leaderboard for ${this.playerName}`,
+                    content: btoa(JSON.stringify(currentContent, null, 2)),
+                    sha: fileData.sha
+                })
+            });
 
-            // Update display
+            if (!updateResponse.ok) {
+                throw new Error('Failed to update leaderboard');
+            }
+
+            // Update local display
+            this.leaderboard = currentContent.entries;
             this.updateLeaderboardDisplay();
-
-            // Force a sync with server
-            this.syncLeaderboard();
         } catch (error) {
             console.error('Error updating leaderboard:', error);
             this.showNotification('Error updating leaderboard');
         }
     }
 
-    startLeaderboardUpdates() {
-        // Clear any existing interval
-        if (this.leaderboardUpdateInterval) {
-            clearInterval(this.leaderboardUpdateInterval);
+    updateGoldDisplay() {
+        this.goldElement.textContent = `${this.gold} Gold`;
+        
+        // Update leaderboard if player has a name
+        if (this.playerName) {
+            this.updateLeaderboard();
         }
+    }
 
-        // Update every 15 seconds (15000 milliseconds)
-        this.leaderboardUpdateInterval = setInterval(() => {
-            this.syncLeaderboard();
-        }, 15000);
-
-        // Initial sync
-        this.syncLeaderboard();
+    setPlayerName() {
+        const input = document.getElementById('playerNameInput');
+        if (input && input.value.trim()) {
+            this.playerName = input.value.trim();
+            localStorage.setItem('playerName', this.playerName);
+            this.leaderboardState.selectedIndex = 0;
+            this.updateLeaderboardDisplay();
+            this.showNotification('Name saved! Your score will be updated automatically.');
+        }
     }
 
     toggleLeaderboard() {
@@ -822,104 +766,18 @@ class Game {
             // Reset state when opening
             this.leaderboardState = {
                 selectedIndex: 0,
-                isNameInput: false,
-                isAdminLogin: false
+                isNameInput: false
             };
             // Force an immediate update when opening the leaderboard
-            this.syncLeaderboard();
+            this.loadLeaderboard();
         }
-    }
-
-    updateLeaderboardDisplay() {
-        // Sort leaderboard by gold
-        const sortedLeaderboard = [...this.leaderboard].sort((a, b) => b.gold - a.gold);
-        
-        let html = `
-            <h2 style="margin-top: 0; color: #ffd700;">Leaderboard</h2>
-            <div style="margin-bottom: 20px;">
-        `;
-
-        if (!this.playerName) {
-            html += `
-                <div style="margin-bottom: 20px;">
-                    <input type="text" id="playerNameInput" placeholder="Enter your name" 
-                        style="padding: 5px; width: 200px; margin-right: 10px;">
-                    <button id="saveNameButton"
-                        style="padding: 5px 10px; background: ${this.leaderboardState.selectedIndex === 0 ? '#4CAF50' : '#666'}; border: none; color: white; cursor: pointer;">
-                        Save Name
-                    </button>
-                </div>
-            `;
-        }
-
-        html += `
-            <table style="width: 100%; border-collapse: collapse;">
-                <tr style="background: rgba(255, 215, 0, 0.2);">
-                    <th style="padding: 10px; text-align: left;">Rank</th>
-                    <th style="padding: 10px; text-align: left;">Name</th>
-                    <th style="padding: 10px; text-align: right;">Gold</th>
-                    ${this.isAdmin ? '<th style="padding: 10px; text-align: center;">Actions</th>' : ''}
-                </tr>
-        `;
-
-        sortedLeaderboard.forEach((entry, index) => {
-            const isCurrentPlayer = entry.name === this.playerName;
-            const isSelected = index + (this.playerName ? 0 : 1) === this.leaderboardState.selectedIndex;
-            html += `
-                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); 
-                    ${isCurrentPlayer ? 'background: rgba(76, 175, 80, 0.2);' : ''}
-                    ${isSelected ? 'background: rgba(255, 215, 0, 0.2);' : ''}">
-                    <td style="padding: 10px;">${index + 1}</td>
-                    <td style="padding: 10px;">${entry.name}${isCurrentPlayer ? ' (You)' : ''}</td>
-                    <td style="padding: 10px; text-align: right;">${entry.gold}</td>
-                    ${this.isAdmin ? `
-                        <td style="padding: 10px; text-align: center;">
-                            <button onclick="game.removeFromLeaderboard('${entry.id}')"
-                                style="padding: 3px 8px; background: #ff4444; border: none; color: white; cursor: pointer; 
-                                ${isSelected ? 'border: 2px solid #ffd700;' : ''}">
-                                Remove
-                            </button>
-                        </td>
-                    ` : ''}
-                </tr>
-            `;
-        });
-
-        const buttonCount = this.isAdmin ? 1 : 2;
-        const closeButtonIndex = sortedLeaderboard.length + (this.playerName ? 0 : 1);
-        const adminButtonIndex = closeButtonIndex + 1;
-
-        html += `
-            </table>
-            <div style="margin-top: 20px; text-align: center;">
-                <button id="closeButton"
-                    style="padding: 8px 20px; background: ${this.leaderboardState.selectedIndex === closeButtonIndex ? '#4CAF50' : '#666'}; border: none; color: white; cursor: pointer;">
-                    Close
-                </button>
-                ${!this.isAdmin ? `
-                    <button id="adminButton"
-                        style="padding: 8px 20px; background: ${this.leaderboardState.selectedIndex === adminButtonIndex ? '#4CAF50' : '#444'}; border: none; color: white; cursor: pointer; margin-left: 10px;">
-                        Admin Login
-                    </button>
-                ` : ''}
-            </div>
-            <div style="margin-top: 10px; text-align: center; color: #888; font-size: 12px;">
-                Last updated: ${new Date(this.localLeaderboard.lastUpdate).toLocaleString()}
-            </div>
-            <div style="margin-top: 10px; text-align: center; color: #888; font-size: 12px;">
-                Use ↑↓ arrows to navigate, Enter to select, Esc to close
-                ${this.isAdmin ? '<br>As admin: Select an entry and press Enter to remove it' : ''}
-            </div>
-        `;
-
-        this.leaderboardElement.innerHTML = html;
     }
 
     handleLeaderboardKeydown(e) {
         if (!this.leaderboardOverlay.style.display === 'block') return;
 
         const sortedLeaderboard = [...this.leaderboard].sort((a, b) => b.gold - a.gold);
-        const maxIndex = sortedLeaderboard.length + (this.isAdmin ? 1 : 2) - (this.playerName ? 0 : 1);
+        const maxIndex = sortedLeaderboard.length + (this.playerName ? 0 : 1);
 
         switch (e.key) {
             case 'ArrowUp':
@@ -946,7 +804,6 @@ class Game {
     handleLeaderboardSelection() {
         const sortedLeaderboard = [...this.leaderboard].sort((a, b) => b.gold - a.gold);
         const closeButtonIndex = sortedLeaderboard.length + (this.playerName ? 0 : 1);
-        const adminButtonIndex = closeButtonIndex + 1;
 
         if (!this.playerName && this.leaderboardState.selectedIndex === 0) {
             // Save name button selected
@@ -954,49 +811,7 @@ class Game {
         } else if (this.leaderboardState.selectedIndex === closeButtonIndex) {
             // Close button selected
             this.toggleLeaderboard();
-        } else if (!this.isAdmin && this.leaderboardState.selectedIndex === adminButtonIndex) {
-            // Admin login button selected
-            this.toggleAdminLogin();
-        } else if (this.isAdmin) {
-            // Remove entry selected
-            const selectedEntry = sortedLeaderboard[this.leaderboardState.selectedIndex - (this.playerName ? 0 : 1)];
-            if (selectedEntry) {
-                if (confirm(`Are you sure you want to remove ${selectedEntry.name}'s score of ${selectedEntry.gold}?`)) {
-                    this.removeFromLeaderboard(selectedEntry.id);
-                }
-            }
         }
-    }
-
-    setPlayerName() {
-        const input = document.getElementById('playerNameInput');
-        if (input && input.value.trim()) {
-            this.playerName = input.value.trim();
-            localStorage.setItem('playerName', this.playerName);
-            this.leaderboardState.selectedIndex = 0;
-            this.updateLeaderboardDisplay();
-            this.showNotification('Name saved! Your score will be updated automatically.');
-        }
-    }
-
-    removeFromLeaderboard(id) {
-        if (!this.isAdmin) return;
-
-        // Remove from leaderboard
-        this.leaderboard = this.leaderboard.filter(entry => entry.id !== id);
-        
-        // Save to localStorage
-        localStorage.setItem('localLeaderboard', JSON.stringify(this.localLeaderboard));
-        
-        // Update local storage
-        this.localLeaderboard.entries = this.leaderboard;
-        this.localLeaderboard.lastUpdate = new Date().toISOString();
-        localStorage.setItem('localLeaderboard', JSON.stringify(this.localLeaderboard));
-
-        // Update display
-        this.updateLeaderboardDisplay();
-        
-        this.showNotification('Entry removed successfully');
     }
 
     setupEventListeners() {
@@ -1383,15 +1198,6 @@ class Game {
             timeLimit: 60, // 1 minute in seconds
             startTime: null // Will be set when quest is accepted
         };
-    }
-
-    updateGoldDisplay() {
-        this.goldElement.textContent = `${this.gold} Gold`;
-        
-        // Update leaderboard if player has a name
-        if (this.playerName) {
-            this.updateLeaderboard();
-        }
     }
 
     updateMainMenu() {
@@ -2118,24 +1924,6 @@ class Game {
         setTimeout(() => {
             this.notificationElement.style.display = 'none';
         }, duration);
-    }
-
-    toggleAdminLogin() {
-        const password = prompt('Enter admin password:');
-        if (password === this.adminPassword) {
-            const token = prompt('Enter GitHub token:');
-            if (token) {
-                this.isAdmin = true;
-                this.githubToken = token;
-                localStorage.setItem('isAdmin', 'true');
-                this.updateLeaderboardDisplay();
-                this.showNotification('Admin access granted');
-            } else {
-                alert('GitHub token required for admin access');
-            }
-        } else {
-            alert('Invalid password');
-        }
     }
 }
 
