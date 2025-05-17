@@ -1575,10 +1575,16 @@ class Game {
 
                         // Process each quest individually
                         for (const quest of deliverableQuests) {
+                            // Create a copy of cargo items to check against
+                            const cargoCopy = this.cargo.items.map(item => ({
+                                ...item,
+                                remainingQuantity: item.quantity
+                            }));
+
                             // Check if we have all required items for this specific quest
                             const hasAllItems = quest.commodities.every(questItem => {
-                                const cargoItem = this.cargo.items.find(item => item.name === questItem.name);
-                                return cargoItem && cargoItem.quantity >= questItem.quantity;
+                                const cargoItem = cargoCopy.find(item => item.name === questItem.name);
+                                return cargoItem && cargoItem.remainingQuantity >= questItem.quantity;
                             });
 
                             if (hasAllItems) {
@@ -1586,6 +1592,7 @@ class Game {
                                 quest.commodities.forEach(questItem => {
                                     const cargoItem = this.cargo.items.find(item => item.name === questItem.name);
                                     if (cargoItem) {
+                                        // Only remove the quantity needed for this quest
                                         cargoItem.quantity -= questItem.quantity;
                                         if (cargoItem.quantity <= 0) {
                                             this.cargo.items = this.cargo.items.filter(item => item.name !== questItem.name);
