@@ -1916,6 +1916,7 @@ class Game {
                 this.isAdmin = true;
                 this.githubToken = token;
                 this.updateLeaderboardDisplay();
+                this.showNotification('Admin access granted');
             } else {
                 alert('GitHub token required for admin access');
             }
@@ -1926,7 +1927,11 @@ class Game {
 
     async loadLeaderboard() {
         try {
-            const response = await fetch(this.leaderboardUrl);
+            const response = await fetch(this.leaderboardUrl, {
+                headers: {
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
             const data = await response.json();
             this.leaderboard = data.entries;
             this.updateLeaderboardDisplay();
@@ -1938,10 +1943,24 @@ class Game {
 
     async updateLeaderboard() {
         if (!this.playerName) return;
+        if (!this.githubToken) {
+            this.showNotification('Please log in as admin to update the leaderboard');
+            return;
+        }
 
         try {
             // First, get the current content and SHA
-            const response = await fetch(this.leaderboardUpdateUrl);
+            const response = await fetch(this.leaderboardUpdateUrl, {
+                headers: {
+                    'Authorization': `token ${this.githubToken}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch current leaderboard: ${response.status}`);
+            }
+
             const fileData = await response.json();
             const currentContent = atob(fileData.content);
             const currentData = JSON.parse(currentContent);
@@ -1971,20 +1990,23 @@ class Game {
                 method: 'PUT',
                 headers: {
                     'Authorization': `token ${this.githubToken}`,
+                    'Accept': 'application/vnd.github.v3+json',
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(updateData)
             });
 
-            if (updateResponse.ok) {
-                this.leaderboard = currentData.entries;
-                this.updateLeaderboardDisplay();
-            } else {
-                throw new Error('Failed to update leaderboard');
+            if (!updateResponse.ok) {
+                throw new Error(`Failed to update leaderboard: ${updateResponse.status}`);
             }
+
+            const updatedData = await updateResponse.json();
+            this.leaderboard = currentData.entries;
+            this.updateLeaderboardDisplay();
+            this.showNotification('Leaderboard updated successfully');
         } catch (error) {
             console.error('Error updating leaderboard:', error);
-            this.showNotification('Failed to update leaderboard');
+            this.showNotification(`Failed to update leaderboard: ${error.message}`);
         }
     }
 
