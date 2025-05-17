@@ -4,22 +4,6 @@ class Game {
         this.ctx = this.canvas.getContext('2d');
         this.gridInfo = document.getElementById('currentGrid');
         
-        // Reset gold on refresh
-        this.gold = 2500;
-        this.goldElement = document.createElement('div');
-        this.goldElement.style.position = 'fixed';
-        this.goldElement.style.top = '10px';
-        this.goldElement.style.right = '10px';
-        this.goldElement.style.color = '#ffd700';
-        this.goldElement.style.fontFamily = 'Arial';
-        this.goldElement.style.fontSize = '24px';
-        this.goldElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-        this.goldElement.style.padding = '10px';
-        this.goldElement.style.borderRadius = '5px';
-        this.goldElement.style.zIndex = '1000';
-        this.updateGoldDisplay();
-        document.body.appendChild(this.goldElement);
-        
         // Map dimensions
         this.mapWidth = 10980;
         this.mapHeight = 10980;
@@ -37,8 +21,8 @@ class Game {
         // Calculate cell dimensions
         this.cellWidth = this.mapWidth / this.gridSize;
         this.cellHeight = this.mapHeight / this.gridSize;
-        
-        // Update outposts list
+
+        // Initialize all data structures first
         this.outposts = [
             "Sanctuary Outpost",
             "Port Merrick",
@@ -49,7 +33,6 @@ class Game {
             "Morrow's Peak Outpost"
         ];
 
-        // Add seaposts list
         this.seaposts = [
             "The Spoils of Plenty Store",
             "The North Star Seapost",
@@ -61,7 +44,6 @@ class Game {
             "Roaring Traders"
         ];
 
-        // Add fortresses list
         this.fortresses = [
             "Keel Haul Fort",
             "Hidden Spring Keep",
@@ -75,7 +57,6 @@ class Game {
             "Molten Sands Fortress"
         ];
 
-        // Island data organized by type and region
         this.islands = [
             // Outposts
             { name: "Sanctuary Outpost", grid: "F7", type: "outpost", region: "The Shores of Plenty" },
@@ -84,101 +65,18 @@ class Game {
             { name: "Ancient Spire Outpost", grid: "Q17", type: "outpost", region: "The Ancient Isles" },
             { name: "Galleon's Grave Outpost", grid: "R8", type: "outpost", region: "The Wilds" },
             { name: "Dagger Tooth Outpost", grid: "M8", type: "outpost", region: "The Wilds" },
-            { name: "Morrow's Peak Outpost", grid: "V17", type: "outpost", region: "The Devil's Roar" },
-
-            // Seaposts
-            { name: "The Spoils of Plenty Store", grid: "B7", type: "seapost", region: "The Shores of Plenty" },
-            { name: "The North Star Seapost", grid: "H11", type: "seapost", region: "The Shores of Plenty" },
-            { name: "The Finest Trading Post", grid: "F17", type: "seapost", region: "The Ancient Isles" },
-            { name: "Stephen's Spoils", grid: "K16", type: "seapost", region: "The Ancient Isles" },
-            { name: "Three Paces East Seapost", grid: "S10", type: "seapost", region: "The Wilds" },
-            { name: "The Wild Treasures Store", grid: "O5", type: "seapost", region: "The Wilds" },
-            { name: "Brian's Bazaar", grid: "X12", type: "seapost", region: "The Devil's Roar" },
-            { name: "Roaring Traders", grid: "T20", type: "seapost", region: "The Devil's Roar" },
-
-            // Fortresses
-            { name: "Keel Haul Fort", grid: "C6", type: "fortress", region: "The Shores of Plenty" },
-            { name: "Hidden Spring Keep", grid: "I8", type: "fortress", region: "The Shores of Plenty" },
-            { name: "Sailor's Knot Stronghold", grid: "E14", type: "fortress", region: "The Shores of Plenty" },
-            { name: "Lost Gold Fort", grid: "H17", type: "fortress", region: "The Ancient Isles" },
-            { name: "Fort of the Damned", grid: "L14", type: "fortress", region: "The Ancient Isles" },
-            { name: "The Crow's Nest Fortress", grid: "O17", type: "fortress", region: "The Ancient Isles" },
-            { name: "Skull Keep", grid: "P9", type: "fortress", region: "The Wilds" },
-            { name: "Kraken Watchtower", grid: "L6", type: "fortress", region: "The Wilds" },
-            { name: "Shark Fin Camp", grid: "P5", type: "fortress", region: "The Wilds" },
-            { name: "Molten Sands Fortress", grid: "Z11", type: "fortress", region: "The Devil's Roar" },
-
-            // Small Islands
-            { name: "Barnacle Cay", grid: "O15", type: "small", region: "The Ancient Isles" },
-            { name: "Black Sand Atoll", grid: "O3", type: "small", region: "The Wilds" },
-            { name: "Black Water Enclave", grid: "R5", type: "small", region: "The Wilds" },
-            { name: "Blind Man's Lagoon", grid: "N6", type: "small", region: "The Wilds" },
-            { name: "Booty Isle", grid: "J21", type: "small", region: "The Ancient Isles" },
-            { name: "Boulder Cay", grid: "G5", type: "small", region: "The Shores of Plenty" },
-            { name: "Brimstone Rock", grid: "X18", type: "small", region: "The Devil's Roar" },
-            { name: "Castaway Isle", grid: "K14", type: "small", region: "The Ancient Isles" },
-            { name: "Chicken Isle", grid: "I16", type: "small", region: "The Ancient Isles" },
-            { name: "Cinder Islet", grid: "U14", type: "small", region: "The Devil's Roar" },
-            { name: "Cursewater Shores", grid: "X13", type: "small", region: "The Devil's Roar" },
-            { name: "Cutlass Cay", grid: "M18", type: "small", region: "The Ancient Isles" },
-            { name: "Flame's End", grid: "V20", type: "small", region: "The Devil's Roar" },
-            { name: "Fools Lagoon", grid: "I14", type: "small", region: "The Ancient Isles" },
-            { name: "Forsaken Brink", grid: "U16", type: "small", region: "The Devil's Roar" },
-            { name: "Glowstone Cay", grid: "Z18", type: "small", region: "The Devil's Roar" },
-            { name: "Isle of Last Words", grid: "O9", type: "small", region: "The Wilds" },
-            { name: "Lagoon of Whispers", grid: "D12", type: "small", region: "The Shores of Plenty" },
-            { name: "Liar's Backbone", grid: "S11", type: "small", region: "The Wilds" },
-            { name: "Lonely Isle", grid: "G8", type: "small", region: "The Shores of Plenty" },
-            { name: "Lookout Point", grid: "I20", type: "small", region: "The Ancient Isles" },
-            { name: "Magma's Tide", grid: "Y20", type: "small", region: "The Devil's Roar" },
-            { name: "Mutineer Rock", grid: "N19", type: "small", region: "The Ancient Isles" },
-            { name: "Old Salts Atoll", grid: "F18", type: "small", region: "The Ancient Isles" },
-            { name: "Paradise Spring", grid: "L17", type: "small", region: "The Ancient Isles" },
-            { name: "Picaroon Palms", grid: "I4", type: "small", region: "The Shores of Plenty" },
-            { name: "Plunderer's Plight", grid: "Q6", type: "small", region: "The Wilds" },
-            { name: "Rapier Cay", grid: "D8", type: "small", region: "The Shores of Plenty" },
-            { name: "Roaring Sands", grid: "U21", type: "small", region: "The Devil's Roar" },
-            { name: "Rum Runner Isle", grid: "H9", type: "small", region: "The Shores of Plenty" },
-            { name: "Salty Sands", grid: "G3", type: "small", region: "The Shores of Plenty" },
-            { name: "Sandy Shallows", grid: "D5", type: "small", region: "The Shores of Plenty" },
-            { name: "Scorched Pass", grid: "X11", type: "small", region: "The Devil's Roar" },
-            { name: "Scurvy Isley", grid: "K4", type: "small", region: "The Wilds" },
-            { name: "Sea Dog's Rest", grid: "C11", type: "small", region: "The Shores of Plenty" },
-            { name: "Shark Tooth Key", grid: "P13", type: "small", region: "The Wilds" },
-            { name: "Shiver Retreat", grid: "Q11", type: "small", region: "The Wilds" },
-            { name: "Tri-Rock Isle", grid: "R10", type: "small", region: "The Wilds" },
-            { name: "Twin Groves", grid: "G11", type: "small", region: "The Shores of Plenty" },
-
-            // Large Islands
-            { name: "Ashen Reaches", grid: "V23", type: "large", region: "The Devil's Roar" },
-            { name: "Cannon Cove", grid: "F10", type: "large", region: "The Shores of Plenty" },
-            { name: "Crescent Isle", grid: "B9", type: "large", region: "The Shores of Plenty" },
-            { name: "Crook's Hollow", grid: "M16", type: "large", region: "The Ancient Isles" },
-            { name: "Devil's Ridge", grid: "P19", type: "large", region: "The Ancient Isles" },
-            { name: "Discovery Ridge", grid: "E17", type: "large", region: "The Ancient Isles" },
-            { name: "Fetcher's Rest", grid: "V12", type: "large", region: "The Devil's Roar" },
-            { name: "Flintlock Peninsula", grid: "W14", type: "large", region: "The Devil's Roar" },
-            { name: "Kraken's Fall", grid: "R13", type: "large", region: "The Wilds" },
-            { name: "Lone Cove", grid: "H6", type: "large", region: "The Shores of Plenty" },
-            { name: "Marauder's Arch", grid: "Q3", type: "large", region: "The Wilds" },
-            { name: "Mermaid's Hideaway", grid: "B13", type: "large", region: "The Shores of Plenty" },
-            { name: "Old Faithful Isle", grid: "M4", type: "large", region: "The Wilds" },
-            { name: "Plunder Valley", grid: "G16", type: "large", region: "The Ancient Isles" },
-            { name: "Ruby's Fall", grid: "Y16", type: "large", region: "The Devil's Roar" },
-            { name: "Sailor's Bounty", grid: "C4", type: "large", region: "The Shores of Plenty" },
-            { name: "Shark Bait Cove", grid: "H19", type: "large", region: "The Ancient Isles" },
-            { name: "Shipwreck Bay", grid: "M10", type: "large", region: "The Wilds" },
-            { name: "Smugglers' Bay", grid: "F3", type: "large", region: "The Shores of Plenty" },
-            { name: "Snake Island", grid: "J16", type: "large", region: "The Ancient Isles" },
-            { name: "The Crooked Masts", grid: "O11", type: "large", region: "The Wilds" },
-            { name: "The Devil's Thirst", grid: "W21", type: "large", region: "The Devil's Roar" },
-            { name: "The Reaper's Hideout", grid: "I12", type: "large", region: "No Man's Sea" },
-            { name: "The Sunken Grove", grid: "P7", type: "large", region: "The Wilds" },
-            { name: "Thieves' Haven", grid: "L20", type: "large", region: "The Ancient Isles" },
-            { name: "Wanderers Refuge", grid: "F12", type: "large", region: "The Shores of Plenty" }
+            { name: "Morrow's Peak Outpost", grid: "V17", type: "outpost", region: "The Devil's Roar" }
         ];
-        
-        // Get random outpost for spawn
+
+        // Convert grid coordinates to x,y coordinates for islands
+        this.islands.forEach(island => {
+            const gridX = island.grid.charCodeAt(0) - 65; // Convert A-Z to 0-25
+            const gridY = parseInt(island.grid.substring(1)) - 1; // Convert 1-26 to 0-25
+            island.x = (gridX + 0.5) * this.cellWidth;
+            island.y = (gridY + 0.5) * this.cellHeight;
+        });
+
+        // Now we can safely get random outpost for spawn
         const randomOutpost = this.outposts[Math.floor(Math.random() * this.outposts.length)];
         const outpostData = this.islands.find(island => island.name === randomOutpost);
         const gridX = outpostData.grid.charCodeAt(0) - 65;
@@ -197,6 +95,22 @@ class Game {
             deceleration: 0.98,
             rotationSpeed: 0.05
         };
+
+        // Reset gold on refresh
+        this.gold = 2500;
+        this.goldElement = document.createElement('div');
+        this.goldElement.style.position = 'fixed';
+        this.goldElement.style.top = '10px';
+        this.goldElement.style.right = '10px';
+        this.goldElement.style.color = '#ffd700';
+        this.goldElement.style.fontFamily = 'Arial';
+        this.goldElement.style.fontSize = '24px';
+        this.goldElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        this.goldElement.style.padding = '10px';
+        this.goldElement.style.borderRadius = '5px';
+        this.goldElement.style.zIndex = '1000';
+        this.updateGoldDisplay();
+        document.body.appendChild(this.goldElement);
         
         // Add collision detection properties
         this.backgroundData = null;
