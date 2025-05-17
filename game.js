@@ -718,6 +718,64 @@ class Game {
         return alpha > 128; // Consider pixels with alpha > 128 as solid
     }
 
+    // New method to handle collision response
+    handleCollision(newX, newY) {
+        const buffer = 20; // Buffer zone in pixels
+        const collisionPoints = [
+            { x: newX, y: newY }, // Center
+            { x: newX + this.player.width/3, y: newY }, // Right
+            { x: newX - this.player.width/3, y: newY }, // Left
+            { x: newX, y: newY + this.player.height/3 }, // Bottom
+            { x: newX, y: newY - this.player.height/3 }, // Top
+            { x: newX + this.player.width/3, y: newY + this.player.height/3 }, // Bottom Right
+            { x: newX - this.player.width/3, y: newY + this.player.height/3 }, // Bottom Left
+            { x: newX + this.player.width/3, y: newY - this.player.height/3 }, // Top Right
+            { x: newX - this.player.width/3, y: newY - this.player.height/3 }  // Top Left
+        ];
+
+        // Check each point with buffer
+        for (const point of collisionPoints) {
+            // Check points in a circle around the collision point
+            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
+                const checkX = point.x + Math.cos(angle) * buffer;
+                const checkY = point.y + Math.sin(angle) * buffer;
+                if (this.checkCollision(checkX, checkY)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // New method to find the best sliding angle
+    findBestSlidingAngle(currentX, currentY, speed) {
+        const testAngles = [];
+        // Add even more test angles for smoother sliding
+        for (let i = -12; i <= 12; i++) {
+            testAngles.push(i * Math.PI / 24); // Test angles in even smaller increments
+        }
+        
+        let bestAngle = null;
+        let maxDistance = 0;
+        
+        for (const angle of testAngles) {
+            // Test more distances for each angle
+            for (let distance = speed * 1.2; distance >= speed * 0.1; distance *= 0.9) {
+                const testX = currentX + Math.cos(this.player.rotation + angle) * distance;
+                const testY = currentY + Math.sin(this.player.rotation + angle) * distance;
+                
+                if (!this.handleCollision(testX, testY)) {
+                    if (distance > maxDistance) {
+                        maxDistance = distance;
+                        bestAngle = angle;
+                    }
+                }
+            }
+        }
+        
+        return { angle: bestAngle, distance: maxDistance };
+    }
+
     scanForIslands() {
         const islandPoints = [];
         const visited = new Set();
@@ -1389,36 +1447,27 @@ class Game {
         const newX = this.player.x + Math.cos(this.player.rotation) * this.player.speed;
         const newY = this.player.y + Math.sin(this.player.rotation) * this.player.speed;
 
-        // Check for collisions at multiple points around the boat
-        const collisionPoints = [
-            { x: newX, y: newY }, // Center
-            { x: newX + this.player.width/3, y: newY }, // Right
-            { x: newX - this.player.width/3, y: newY }, // Left
-            { x: newX, y: newY + this.player.height/3 }, // Bottom
-            { x: newX, y: newY - this.player.height/3 }, // Top
-            { x: newX + this.player.width/3, y: newY + this.player.height/3 }, // Bottom Right
-            { x: newX - this.player.width/3, y: newY + this.player.height/3 }, // Bottom Left
-            { x: newX + this.player.width/3, y: newY - this.player.height/3 }, // Top Right
-            { x: newX - this.player.width/3, y: newY - this.player.height/3 }  // Top Left
-        ];
-
-        let hasCollision = false;
-        for (const point of collisionPoints) {
-            if (this.checkCollision(point.x, point.y)) {
-                hasCollision = true;
-                break;
+        // Check for collisions with improved handling
+        if (this.handleCollision(newX, newY)) {
+            // Gradually reduce speed when colliding
+            this.player.speed *= 0.95; // Even less speed reduction
+            
+            // Find the best sliding angle
+            const slideResult = this.findBestSlidingAngle(this.player.x, this.player.y, this.player.speed);
+            
+            if (slideResult.angle !== null) {
+                // Apply sliding movement with a slight boost
+                const slideBoost = 1.1; // Add 10% boost to sliding distance
+                this.player.x += Math.cos(this.player.rotation + slideResult.angle) * slideResult.distance * slideBoost;
+                this.player.y += Math.sin(this.player.rotation + slideResult.angle) * slideResult.distance * slideBoost;
+            } else {
+                // If no valid slide found, reduce speed more aggressively
+                this.player.speed *= 0.6; // Less aggressive speed reduction
             }
-        }
-
-        // Only update position if there's no collision
-        if (!hasCollision) {
+        } else {
+            // No collision, update position normally
             this.player.x = newX;
             this.player.y = newY;
-        } else {
-            // Stop the boat completely when colliding
-            this.player.speed = 0;
-            this.player.x = this.player.x; // Keep current position
-            this.player.y = this.player.y; // Keep current position
         }
         
         // Keep player within map bounds
