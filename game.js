@@ -630,6 +630,177 @@ class Game {
         
         // Start game loop
         this.gameLoop();
+
+        // Add escape menu element
+        this.escapeMenuElement = document.createElement('div');
+        this.escapeMenuElement.style.position = 'fixed';
+        this.escapeMenuElement.style.top = '50%';
+        this.escapeMenuElement.style.left = '50%';
+        this.escapeMenuElement.style.transform = 'translate(-50%, -50%)';
+        this.escapeMenuElement.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+        this.escapeMenuElement.style.padding = '20px';
+        this.escapeMenuElement.style.borderRadius = '10px';
+        this.escapeMenuElement.style.color = 'white';
+        this.escapeMenuElement.style.fontFamily = 'Arial';
+        this.escapeMenuElement.style.display = 'none';
+        this.escapeMenuElement.style.zIndex = '9999';
+        this.escapeMenuElement.style.minWidth = '300px';
+        document.body.appendChild(this.escapeMenuElement);
+
+        // Add escape menu overlay
+        this.escapeMenuOverlay = document.createElement('div');
+        this.escapeMenuOverlay.style.position = 'fixed';
+        this.escapeMenuOverlay.style.top = '0';
+        this.escapeMenuOverlay.style.left = '0';
+        this.escapeMenuOverlay.style.width = '100%';
+        this.escapeMenuOverlay.style.height = '100%';
+        this.escapeMenuOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        this.escapeMenuOverlay.style.display = 'none';
+        this.escapeMenuOverlay.style.zIndex = '9998';
+        document.body.appendChild(this.escapeMenuOverlay);
+
+        // Load saved game data
+        this.loadGameData();
+
+        // Add escape key handler
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !this.showMenu) {
+                this.toggleEscapeMenu();
+            }
+        });
+
+        // Add click handler to escape menu overlay
+        this.escapeMenuOverlay.addEventListener('click', (e) => {
+            if (e.target === this.escapeMenuOverlay) {
+                this.toggleEscapeMenu();
+            }
+        });
+    }
+
+    loadGameData() {
+        const savedData = localStorage.getItem('pirateGameData');
+        if (savedData) {
+            const data = JSON.parse(savedData);
+            this.gold = data.gold || 2500;
+            this.merchantQuests = data.merchantQuests || {
+                commodities: [
+                    { name: "Sugar", basePrice: 100, weight: 1 },
+                    { name: "Tea", basePrice: 150, weight: 1 },
+                    { name: "Spices", basePrice: 200, weight: 1 },
+                    { name: "Silk", basePrice: 250, weight: 1 },
+                    { name: "Rum", basePrice: 300, weight: 1 }
+                ],
+                activeQuests: [],
+                completedQuests: [],
+                outpostQuests: {}
+            };
+            this.cargo = data.cargo || {
+                items: [],
+                maxWeight: 10,
+                currentWeight: 0
+            };
+        }
+        this.updateGoldDisplay();
+        this.updateQuestDisplay();
+        this.updateCargoDisplay();
+    }
+
+    saveGameData() {
+        const gameData = {
+            gold: this.gold,
+            merchantQuests: this.merchantQuests,
+            cargo: this.cargo
+        };
+        localStorage.setItem('pirateGameData', JSON.stringify(gameData));
+    }
+
+    resetGameData() {
+        // Reset all game data to initial values
+        this.gold = 2500;
+        this.merchantQuests = {
+            commodities: [
+                { name: "Sugar", basePrice: 100, weight: 1 },
+                { name: "Tea", basePrice: 150, weight: 1 },
+                { name: "Spices", basePrice: 200, weight: 1 },
+                { name: "Silk", basePrice: 250, weight: 1 },
+                { name: "Rum", basePrice: 300, weight: 1 }
+            ],
+            activeQuests: [],
+            completedQuests: [],
+            outpostQuests: {}
+        };
+        this.cargo = {
+            items: [],
+            maxWeight: 10,
+            currentWeight: 0
+        };
+
+        // Save the reset data
+        this.saveGameData();
+
+        // Update displays
+        this.updateGoldDisplay();
+        this.updateQuestDisplay();
+        this.updateCargoDisplay();
+
+        // Show confirmation
+        this.showNotification('Game progress has been reset!');
+    }
+
+    toggleEscapeMenu() {
+        const isVisible = this.escapeMenuElement.style.display === 'block';
+        this.escapeMenuElement.style.display = isVisible ? 'none' : 'block';
+        this.escapeMenuOverlay.style.display = isVisible ? 'none' : 'block';
+        
+        if (!isVisible) {
+            this.updateEscapeMenu();
+        }
+    }
+
+    updateEscapeMenu() {
+        this.escapeMenuElement.innerHTML = `
+            <h2 style="margin-top: 0; color: #ffd700;">Pause Menu</h2>
+            <div style="margin-bottom: 20px;">
+                <div style="
+                    padding: 10px 20px;
+                    margin: 4px 2px;
+                    border-radius: 5px;
+                    background-color: #ff4444;
+                    cursor: pointer;
+                    text-align: center;
+                " onclick="game.confirmReset()">Reset Progress</div>
+                <div style="
+                    padding: 10px 20px;
+                    margin: 4px 2px;
+                    border-radius: 5px;
+                    background-color: #4CAF50;
+                    cursor: pointer;
+                    text-align: center;
+                " onclick="game.toggleEscapeMenu()">Resume Game</div>
+            </div>
+            <div style="color: #888; font-size: 12px;">
+                Press ESC to close
+            </div>
+        `;
+    }
+
+    confirmReset() {
+        if (confirm('Are you sure you want to reset your progress? This cannot be undone!')) {
+            this.resetGameData();
+            this.toggleEscapeMenu();
+        }
+    }
+
+    update() {
+        // ... existing update code ...
+
+        // Save game data periodically (every 5 seconds)
+        if (!this.lastSaveTime || Date.now() - this.lastSaveTime > 5000) {
+            this.saveGameData();
+            this.lastSaveTime = Date.now();
+        }
+
+        // ... rest of update code ...
     }
 
     updateGoldDisplay() {
@@ -1475,228 +1646,6 @@ class Game {
 
     calculateQuestWeight(quest) {
         return quest.commodities.reduce((sum, item) => sum + (item.weight * item.quantity), 0);
-    }
-    
-    update() {
-        // Handle player rotation
-        if (this.keys.a) this.player.rotation -= this.player.rotationSpeed;
-        if (this.keys.d) this.player.rotation += this.player.rotationSpeed;
-        
-        // Update wind direction gradually
-        this.wind.changeTimer++;
-        if (this.wind.changeTimer >= this.wind.changeInterval) {
-            this.wind.changeTimer = 0;
-            this.wind.targetDirection = Math.random() * Math.PI * 2;
-        }
-        
-        // Smoothly interpolate wind direction
-        const angleDiff = this.wind.targetDirection - this.wind.direction;
-        this.wind.direction += angleDiff * 0.002; // Slow transition
-        
-        // Handle acceleration
-        if (this.keys.w) {
-            // Calculate angle between boat direction and wind direction
-            const angleToWind = Math.abs(this.player.rotation - this.wind.direction);
-            const windEffect = Math.cos(angleToWind); // 1 when going with wind, -1 when against
-            
-            // Apply wind effect to acceleration
-            const windMultiplier = 1 + (windEffect * 0.5); // 50% boost/reduction
-            this.player.speed += this.player.acceleration * windMultiplier;
-        }
-        
-        // Apply deceleration
-        this.player.speed *= this.player.deceleration;
-        
-        // Limit maximum speed
-        this.player.speed = Math.min(this.player.speed, this.player.maxSpeed);
-        
-        // Calculate new position based on speed and rotation
-        const newX = this.player.x + Math.cos(this.player.rotation) * this.player.speed;
-        const newY = this.player.y + Math.sin(this.player.rotation) * this.player.speed;
-
-        // Check for collisions with improved handling
-        if (this.handleCollision(newX, newY)) {
-            // Gradually reduce speed when colliding
-            this.player.speed *= 0.95; // Even less speed reduction
-            
-            // Find the best sliding angle
-            const slideResult = this.findBestSlidingAngle(this.player.x, this.player.y, this.player.speed);
-            
-            if (slideResult.angle !== null) {
-                // Apply sliding movement with a slight boost
-                const slideBoost = 1.1; // Add 10% boost to sliding distance
-                this.player.x += Math.cos(this.player.rotation + slideResult.angle) * slideResult.distance * slideBoost;
-                this.player.y += Math.sin(this.player.rotation + slideResult.angle) * slideResult.distance * slideBoost;
-            } else {
-                // If no valid slide found, reduce speed more aggressively
-                this.player.speed *= 0.6; // Less aggressive speed reduction
-            }
-        } else {
-            // No collision, update position normally
-            this.player.x = newX;
-            this.player.y = newY;
-        }
-        
-        // Keep player within map bounds
-        this.player.x = Math.max(0, Math.min(this.mapWidth, this.player.x));
-        this.player.y = Math.max(0, Math.min(this.mapHeight, this.player.y));
-        
-        // Update camera to follow player
-        this.camera.x = this.player.x - (this.canvas.width / 2 / this.camera.scale);
-        this.camera.y = this.player.y - (this.canvas.height / 2 / this.camera.scale);
-        
-        // Keep camera within map bounds
-        this.camera.x = Math.max(0, Math.min(this.mapWidth - (this.canvas.width / this.camera.scale), this.camera.x));
-        this.camera.y = Math.max(0, Math.min(this.mapHeight - (this.canvas.height / this.camera.scale), this.camera.y));
-        
-        // Update grid position display
-        this.gridInfo.textContent = `Grid: ${this.getGridPosition(this.player.x, this.player.y)}`;
-
-        // Check if player is near an outpost using mapped positions
-        this.nearOutpost = false;
-        this.currentOutpost = null;
-        
-        if (this.mappedIslands) {
-            for (const island of this.mappedIslands) {
-                if (island.isOutpost) {
-                    const distance = Math.sqrt(
-                        Math.pow(this.player.x - island.x, 2) + 
-                        Math.pow(this.player.y - island.y, 2)
-                    );
-                    
-                    if (distance < 300) {
-                        this.nearOutpost = true;
-                        this.currentOutpost = island.name;
-
-                        // Check for auto-delivery of quests
-                        const deliverableQuests = this.merchantQuests.activeQuests.filter(q => 
-                            q.status === 'active' && q.destinationOutpost === island.name
-                        );
-
-                        // Create a cargo tracking system
-                        const cargoTracker = new Map();
-                        this.cargo.items.forEach(item => {
-                            cargoTracker.set(item.name, {
-                                quantity: item.quantity,
-                                weight: item.weight
-                            });
-                        });
-
-                        // Process each quest individually
-                        for (const quest of deliverableQuests) {
-                            // Check if we have all required items for this specific quest
-                            const hasAllItems = quest.commodities.every(questItem => {
-                                const cargoItem = cargoTracker.get(questItem.name);
-                                return cargoItem && cargoItem.quantity >= questItem.quantity;
-                            });
-
-                            if (hasAllItems) {
-                                // Remove only the items needed for this specific quest
-                                quest.commodities.forEach(questItem => {
-                                    const cargoItem = cargoTracker.get(questItem.name);
-                                    if (cargoItem) {
-                                        cargoItem.quantity -= questItem.quantity;
-                                    }
-                                });
-
-                                // Update actual cargo items
-                                this.cargo.items = Array.from(cargoTracker.entries())
-                                    .filter(([_, item]) => item.quantity > 0)
-                                    .map(([name, item]) => ({
-                                        name,
-                                        quantity: item.quantity,
-                                        weight: item.weight
-                                    }));
-
-                                // Update cargo weight
-                                this.cargo.currentWeight = this.cargo.items.reduce((sum, item) => 
-                                    sum + (item.weight * item.quantity), 0);
-
-                                // Add reward to gold
-                                this.gold += quest.reward;
-                                this.updateGoldDisplay();
-
-                                // Move quest to completed
-                                this.merchantQuests.activeQuests = this.merchantQuests.activeQuests.filter(q => q.id !== quest.id);
-                                this.merchantQuests.completedQuests.push({
-                                    ...quest,
-                                    status: 'completed'
-                                });
-
-                                // Generate a new quest for the outpost if needed
-                                if (this.merchantQuests.outpostQuests[quest.startOutpost].length < 3) {
-                                    const newQuest = this.generateMerchantQuest(quest.startOutpost);
-                                    this.merchantQuests.outpostQuests[quest.startOutpost].push(newQuest);
-                                }
-
-                                // Show reward message
-                                this.showNotification(`Quest completed! You received ${quest.reward} gold!`);
-                            }
-                        }
-
-                        break;
-                    }
-                }
-            }
-        }
-        
-        // Update tooltip visibility
-        this.tooltipElement.style.display = this.nearOutpost ? 'block' : 'none';
-        if (this.nearOutpost) {
-            this.tooltipElement.textContent = `Press E to interact with ${this.currentOutpost}`;
-        }
-
-        // Update quest timers and displays
-        this.merchantQuests.activeQuests = this.merchantQuests.activeQuests.filter(quest => {
-            const timeLeft = (quest.startTime + (quest.timeLimit * 1000)) - Date.now();
-            if (timeLeft <= 0) {
-                // Quest failed
-                this.merchantQuests.completedQuests.push({
-                    ...quest,
-                    status: 'failed'
-                });
-                return false;
-            }
-            return true;
-        });
-
-        // Update displays
-        this.updateQuestDisplay();
-        this.updateCargoDisplay();
-
-        // Update menu if open
-        if (this.showMenu) {
-            if (this.questMenuElement.style.display === 'block') {
-                // Only update quest menu if we're at the correct outpost
-                const currentQuestOutpost = this.merchantQuests.activeQuests.find(q => 
-                    q.status === 'active' && q.destinationOutpost === this.currentOutpost
-                )?.destinationOutpost;
-                
-                if (currentQuestOutpost === this.currentOutpost) {
-                    this.updateQuestMenu();
-                }
-            } else if (this.menuElement.style.display === 'block') {
-                this.updateMainMenu();
-            }
-        }
-
-        // Update cargo drop progress
-        if (this.cargoDropState && this.cargoDropState.isHolding && this.cargo.items.length > 0) {
-            const holdTime = Date.now() - this.cargoDropState.holdStartTime;
-
-            if (holdTime >= this.cargoDropState.holdDuration) {
-                // Drop all cargo
-                this.cargo.items = [];
-                this.cargo.currentWeight = 0;
-                
-                // Reset drop state
-                this.cargoDropState.isHolding = false;
-                
-                // Update displays and show notification
-                this.updateCargoDisplay();
-                this.showNotification('Cargo dropped into the water!');
-            }
-        }
     }
     
     draw() {
