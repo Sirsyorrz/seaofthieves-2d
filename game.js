@@ -1365,10 +1365,11 @@ class Game {
         });
 
         if (hasAllItems) {
-            // Remove items from cargo
+            // Remove only the items needed for this specific quest
             quest.commodities.forEach(questItem => {
                 const cargoItem = this.cargo.items.find(item => item.name === questItem.name);
                 if (cargoItem) {
+                    // Only remove the quantity needed for this quest
                     cargoItem.quantity -= questItem.quantity;
                     if (cargoItem.quantity <= 0) {
                         this.cargo.items = this.cargo.items.filter(item => item.name !== questItem.name);
@@ -1395,7 +1396,6 @@ class Game {
             if (this.merchantQuests.outpostQuests[quest.startOutpost].length < 3) {
                 const newQuest = this.generateMerchantQuest(quest.startOutpost);
                 this.merchantQuests.outpostQuests[quest.startOutpost].push(newQuest);
-                this.merchantQuests.activeQuests.push(newQuest);
             }
 
             // Update displays
