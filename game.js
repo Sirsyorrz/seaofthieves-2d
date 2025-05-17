@@ -254,17 +254,101 @@ class Game {
         
         // Add text offset properties
         this.textOffsets = {
-            "Ancient Spire Outpost": { x: 6630 - (this.mapWidth / this.gridSize * 15.5), y: 0 },
-            "Hidden Spring Keep": { x: -135, y: -100 },
-            "Fort of the Damned": { x: 4780 - (this.mapWidth / this.gridSize * 7.5), y: 5800 - (this.mapHeight / this.gridSize * 12.5) },
-            "Morrow's Peak Outpost": { x: -175, y: 0 },
-            "Snake Island": { x: 100, y: -150 }
+            "Ancient Spire Outpost": { x: -31.557075464730588, y: -118.41960288481005 },
+            "Barnacle Cay": { x: 9.8521812563813, y: -105.42422386203452 },
+            "The Crow's Nest Fortress": { x: -13.898611606555278, y: -41.591150775588176 },
+            "Crook's Hollow": { x: -5.321279801120909, y: -153.19185969997488 },
+            "Stephen's Spoils": { x: 1.6353590091130172, y: -52.38618283243886 },
+            "Paradise Spring": { x: 12.235671711208852, y: -80.33247278275485 },
+            "Cutlass Cay": { x: -5.332684103794236, y: -78.62752685994565 },
+            "Devil's Ridge": { x: -5.746675847305596, y: -162.30052921644256 },
+            "Mutineer Rock": { x: -0.24485280866701942, y: -73.11634326990225 },
+            "Thieves' Haven": { x: -13.146354283190703, y: -165.31194784694344 },
+            "Plunder Outpost": { x: 4.768030669992186, y: -105.9831239006453 },
+            "Lookout Point": { x: -10.258465259281365, y: -80.65943820457778 },
+            "Shark Bait Cove": { x: -98.09613400544913, y: -104.40445130754506 },
+            "Lost Gold Fort": { x: -67.16143268232918, y: -33.738154395681704 },
+            "Plunder Valley": { x: -105.45706739904017, y: -172.425981460834 },
+            "Chicken Isle": { x: 21.627144484829387, y: -75.6394003900059 },
+            "Snake Island": { x: 135.53217126735308, y: -81.33796468320088 },
+            "The Finest Trading Post": { x: -0.4175732303215227, y: -63.97659746899808 },
+            "Discovery Ridge": { x: -130.0085341729275, y: -159.02987840912647 },
+            "Sailor's Knot Stronghold": { x: -1.842130039455924, y: -112.06808279678353 },
+            "Wanderers Refuge": { x: 9.52937337455569, y: -224.87992439063146 },
+            "The Reaper's Hideout": { x: -20.137504151206485, y: -178.40171402714623 },
+            "Twin Groves": { x: 2.0107562843454616, y: -54.820987119720485 },
+            "The North Star Seapost": { x: 0.7432093615561826, y: -53.95127119663994 },
+            "Rum Runner Isle": { x: -23.20540755032698, y: -53.83981392507167 },
+            "Cannon Cove": { x: -28.910929142798068, y: -209.66971035102915 },
+            "Port Merrick": { x: 26.97114402632087, y: -139.22104170240073 },
+            "Rapier Cay": { x: 21.053375552559828, y: -56.99341566617204 },
+            "Sanctuary Outpost": { x: -5.759397254519627, y: -54.80667686535571 },
+            "Hidden Spring Keep": { x: -0.5394179936238288, y: -119.82374444847528 },
+            "Lone Cove": { x: 3.522262455753662, y: -165.13369558595969 },
+            "Boulder Cay": { x: 15.020638156101995, y: -57.21527592787902 },
+            "Sandy Shallows": { x: -0.9348940887830395, y: -58.30943981130122 },
+            "Keel Haul Fort": { x: -12.045813586097893, y: -58.09946229384059 },
+            "The Spoils of Plenty Store": { x: 9.970227245108731, y: -58.19895987346308 },
+            "Sailor's Bounty": { x: -170.67991250455702, y: -61.2793102769017 },
+            "Smugglers' Bay": { x: 0.18714675049795915, y: -217.32354014367547 },
+            "Salty Sands": { x: 7.059951996057407, y: -67.87177289875501 },
+            "Picaroon Palms": { x: 0.6968881044172122, y: -77.96468860093614 },
+            "Scurvy Isley": { x: 5.303583228027492, y: -76.98891313721765 },
+            "Kraken Watchtower": { x: -10.502266015784699, y: -110.58631545429625 },
+            "Old Faithful Isle": { x: -7.314626213254087, y: -66.55420699210595 },
+            "Blind Man's Lagoon": { x: 25.261948060219765, y: -71.4017591118668 },
+            "Shark Fin Camp": { x: 7.485748606607558, y: -84.75387979348284 },
+            "The Wild Treasures Store": { x: -0.14849436253098247, y: -52.13733050447172 },
+            "Black Sand Atoll": { x: -1.4081944496219876, y: -66.29939115458728 },
+            "Marauder's Arch": { x: 18.302057031482946, y: -124.38695226709092 },
+            "Black Water Enclave": { x: -31.882680812115723, y: -98.73949943098637 },
+            "Plunderer's Plight": { x: 13.13474962949931, y: -92.49461707845239 },
+            "The Sunken Grove": { x: -51.25171553526798, y: -66.29813192478377 },
+            "Dagger Tooth Outpost": { x: -62.71514200312231, y: -210.7602690977301 },
+            "Galleon's Grave Outpost": { x: 13.734707356523359, y: -98.25123776490591 },
+            "Isle of Last Words": { x: -2.439193979110314, y: -73.39395179402709 },
+            "Skull Keep": { x: -20.19709147092908, y: -77.935169321986 },
+            "Tri-Rock Isle": { x: 11.380871804546587, y: -82.16076633588318 },
+            "Three Paces East Seapost": { x: -0.5074732982757268, y: -54.10010889241585 },
+            "Liar's Backbone": { x: 2.6210262451650124, y: -74.12975950552391 },
+            "Shiver Retreat": { x: -4.883721752403289, y: -81.63868178394205 },
+            "The Crooked Masts": { x: -56.20406337401619, y: -68.03212803875158 },
+            "Shipwreck Bay": { x: -46.937781210925095, y: -111.59229619505186 },
+            "Fools Lagoon": { x: 13.379508438414632, y: -60.348380176189494 },
+            "Castaway Isle": { x: -1.9073856414361217, y: -97.93167264610929 },
+            "Fort of the Damned": { x: 14.624655576536497, y: -100.89812769775472 },
+            "Booty Isle": { x: 17.71468759877189, y: -69.97503301936558 },
+            "Old Salts Atoll": { x: -27.255523817862013, y: -112.82524199600721 },
+            "Roaring Traders": { x: -1.4156097280756512, y: -59.809111970008416 },
+            "Flame's End": { x: -2.1411220321915607, y: -73.3736088637379 },
+            "Roaring Sands": { x: -23.118774193166246, y: -67.2214001998891 },
+            "The Devil's Thirst": { x: -95.31952683768031, y: -200.65195125116043 },
+            "Ashen Reaches": { x: -86.98667786948317, y: -199.06059545727294 },
+            "Magma's Tide": { x: 3.372827804108965, y: -85.99842637474558 },
+            "Brimstone Rock": { x: 22.423745291043815, y: -62.240197876062666 },
+            "Glowstone Cay": { x: -15.678089682829523, y: -73.39836013467357 },
+            "Morrow's Peak Outpost": { x: -46.22189859786704, y: -56.25886051717407 },
+            "Ruby's Fall": { x: -50.086741529461506, y: -118.40059364432818 },
+            "Flintlock Peninsula": { x: 1.2823382278347708, y: -136.983008548219 },
+            "Forsaken Brink": { x: -5.248376429832206, y: -94.21991948574032 },
+            "Cinder Islet": { x: -25.658657165162367, y: -95.9851083198655 },
+            "Cursewater Shores": { x: 10.563251913961722, y: -84.00920835395482 },
+            "Brian's Bazaar": { x: -5.744926479523201, y: -63.12446779987749 },
+            "Molten Sands Fortress": { x: -33.46882974845175, y: -68.93799865484834 },
+            "Scorched Pass": { x: -1.297241463118553, y: -80.79999976392264 },
+            "Fetcher's Rest": { x: -75.8700935715151, y: -68.71713126418217 },
+            "Kraken's Fall": { x: -113.19655346948548, y: -270.45732063023934 },
+            "Shark Tooth Key": { x: -13.02129358714592, y: -62.66777966484733 },
+            "Lonely Isle": { x: 4.568673940413191, y: -103.22752503582342 },
+            "Crescent Isle": { x: 20.348158950054653, y: -156.83061171450527 },
+            "Sea Dog's Rest": { x: 8.710049823793952, y: -75.61279194017334 },
+            "Lagoon of Whispers": { x: -13.305991007412786, y: -64.10802860134208 },
+            "Mermaid's Hideaway": { x: 12.935350589379027, y: -80.60486940139617 }
         };
         
-        // Load saved island offsets
-        const savedOffsets = JSON.parse(localStorage.getItem('islandOffsets')) || {};
-        // Merge saved offsets with default offsets
-        this.textOffsets = { ...this.textOffsets, ...savedOffsets };
+        // Remove localStorage loading since we're using hardcoded values
+        // const savedOffsets = JSON.parse(localStorage.getItem('islandOffsets')) || {};
+        // this.textOffsets = { ...this.textOffsets, ...savedOffsets };
         
         // Set up event listeners
         this.setupEventListeners();
@@ -539,8 +623,11 @@ class Game {
         });
 
         // Add debug mode properties
-        this.islandOffsets = JSON.parse(localStorage.getItem('islandOffsets')) || {};
-
+        //this.islandOffsets = JSON.parse(localStorage.getItem('islandOffsets')) || {};
+        
+        // Debug: Log current island positions
+        // console.log('Current Island Text Positions:', JSON.stringify(this.islandOffsets, null, 2));
+        
         // Start game loop
         this.gameLoop();
     }
