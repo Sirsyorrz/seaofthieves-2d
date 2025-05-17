@@ -204,7 +204,7 @@ class Game {
         
         // Load images
         this.mapImage = new Image();
-        this.mapImage.src = './assets/background.png';
+        this.mapImage.src = '/assets/background.png';
         this.mapImage.onload = () => {
             // Create a temporary canvas to get image data
             const tempCanvas = document.createElement('canvas');
@@ -226,7 +226,7 @@ class Game {
         };
         
         this.boatImage = new Image();
-        this.boatImage.src = './assets/boat.png';
+        this.boatImage.src = '/assets/boat.png';
         this.boatImage.onerror = (e) => {
             console.error('Failed to load boat image:', e);
             console.log('Attempted to load from:', this.boatImage.src);
