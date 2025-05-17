@@ -1573,32 +1573,40 @@ class Game {
                             q.status === 'active' && q.destinationOutpost === island.name
                         );
 
+                        // Create a cargo tracking system
+                        const cargoTracker = new Map();
+                        this.cargo.items.forEach(item => {
+                            cargoTracker.set(item.name, {
+                                quantity: item.quantity,
+                                weight: item.weight
+                            });
+                        });
+
                         // Process each quest individually
                         for (const quest of deliverableQuests) {
-                            // Create a copy of cargo items to check against
-                            const cargoCopy = this.cargo.items.map(item => ({
-                                ...item,
-                                remainingQuantity: item.quantity
-                            }));
-
                             // Check if we have all required items for this specific quest
                             const hasAllItems = quest.commodities.every(questItem => {
-                                const cargoItem = cargoCopy.find(item => item.name === questItem.name);
-                                return cargoItem && cargoItem.remainingQuantity >= questItem.quantity;
+                                const cargoItem = cargoTracker.get(questItem.name);
+                                return cargoItem && cargoItem.quantity >= questItem.quantity;
                             });
 
                             if (hasAllItems) {
                                 // Remove only the items needed for this specific quest
                                 quest.commodities.forEach(questItem => {
-                                    const cargoItem = this.cargo.items.find(item => item.name === questItem.name);
+                                    const cargoItem = cargoTracker.get(questItem.name);
                                     if (cargoItem) {
-                                        // Only remove the quantity needed for this quest
                                         cargoItem.quantity -= questItem.quantity;
-                                        if (cargoItem.quantity <= 0) {
-                                            this.cargo.items = this.cargo.items.filter(item => item.name !== questItem.name);
-                                        }
                                     }
                                 });
+
+                                // Update actual cargo items
+                                this.cargo.items = Array.from(cargoTracker.entries())
+                                    .filter(([_, item]) => item.quantity > 0)
+                                    .map(([name, item]) => ({
+                                        name,
+                                        quantity: item.quantity,
+                                        weight: item.weight
+                                    }));
 
                                 // Update cargo weight
                                 this.cargo.currentWeight = this.cargo.items.reduce((sum, item) => 
