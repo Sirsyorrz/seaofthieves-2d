@@ -4,7 +4,7 @@ class Game {
         this.ctx = this.canvas.getContext('2d');
         this.gridInfo = document.getElementById('currentGrid');
         
-        // Add gold counter
+        // Reset gold on refresh
         this.gold = 2500;
         this.goldElement = document.createElement('div');
         this.goldElement.style.position = 'fixed';
@@ -38,10 +38,13 @@ class Game {
         this.cellWidth = this.mapWidth / this.gridSize;
         this.cellHeight = this.mapHeight / this.gridSize;
         
-        // Player position and rotation - spawn at Ancient Spire Outpost (P17)
-        const ancientSpireGrid = "P17";
-        const gridX = ancientSpireGrid.charCodeAt(0) - 65; // Convert P to 15
-        const gridY = parseInt(ancientSpireGrid.substring(1)) - 1; // Convert 17 to 16
+        // Get random outpost for spawn
+        const randomOutpost = this.outposts[Math.floor(Math.random() * this.outposts.length)];
+        const outpostData = this.islands.find(island => island.name === randomOutpost);
+        const gridX = outpostData.grid.charCodeAt(0) - 65;
+        const gridY = parseInt(outpostData.grid.substring(1)) - 1;
+        
+        // Player position and rotation - spawn at random outpost
         this.player = {
             x: (gridX + 0.5) * this.cellWidth,
             y: (gridY + 0.5) * this.cellHeight,
@@ -640,6 +643,11 @@ class Game {
         this.leaderboardUpdateInterval = null; // For storing the interval ID
         this.lastSyncTime = localStorage.getItem('lastLeaderboardSync') || 0;
         this.localLeaderboard = JSON.parse(localStorage.getItem('localLeaderboard')) || { entries: [], lastUpdate: '' };
+        this.leaderboardState = {
+            selectedIndex: 0,
+            isNameInput: false,
+            isAdminLogin: false
+        };
 
         // Create leaderboard overlay
         this.leaderboardOverlay = document.createElement('div');
@@ -679,6 +687,13 @@ class Game {
         // Load initial leaderboard data and start update timer
         this.loadLeaderboard();
         this.startLeaderboardUpdates();
+
+        // Add keyboard navigation for leaderboard
+        window.addEventListener('keydown', (e) => {
+            if (this.leaderboardOverlay.style.display === 'block') {
+                this.handleLeaderboardKeydown(e);
+            }
+        });
     }
 
     startLeaderboardUpdates() {
@@ -756,7 +771,10 @@ class Game {
         // Update local entry
         const existingEntry = this.leaderboard.find(entry => entry.name === this.playerName);
         if (existingEntry) {
-            existingEntry.gold = this.gold;
+            // Only update if current gold is higher
+            if (this.gold > existingEntry.gold) {
+                existingEntry.gold = this.gold;
+            }
         } else {
             this.leaderboard.push({
                 id: Date.now().toString(),
@@ -808,8 +826,8 @@ class Game {
                 <div style="margin-bottom: 20px;">
                     <input type="text" id="playerNameInput" placeholder="Enter your name" 
                         style="padding: 5px; width: 200px; margin-right: 10px;">
-                    <button onclick="game.setPlayerName()" 
-                        style="padding: 5px 10px; background: #4CAF50; border: none; color: white; cursor: pointer;">
+                    <button id="saveNameButton"
+                        style="padding: 5px 10px; background: ${this.leaderboardState.selectedIndex === 0 ? '#4CAF50' : '#666'}; border: none; color: white; cursor: pointer;">
                         Save Name
                     </button>
                 </div>
@@ -828,8 +846,11 @@ class Game {
 
         sortedLeaderboard.forEach((entry, index) => {
             const isCurrentPlayer = entry.name === this.playerName;
+            const isSelected = index + (this.playerName ? 0 : 1) === this.leaderboardState.selectedIndex;
             html += `
-                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); ${isCurrentPlayer ? 'background: rgba(76, 175, 80, 0.2);' : ''}">
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); 
+                    ${isCurrentPlayer ? 'background: rgba(76, 175, 80, 0.2);' : ''}
+                    ${isSelected ? 'background: rgba(255, 215, 0, 0.2);' : ''}">
                     <td style="padding: 10px;">${index + 1}</td>
                     <td style="padding: 10px;">${entry.name}${isCurrentPlayer ? ' (You)' : ''}</td>
                     <td style="padding: 10px; text-align: right;">${entry.gold}</td>
@@ -845,16 +866,20 @@ class Game {
             `;
         });
 
+        const buttonCount = this.isAdmin ? 1 : 2; // Close button + (Admin Login or Save Name)
+        const closeButtonIndex = sortedLeaderboard.length + (this.playerName ? 0 : 1);
+        const adminButtonIndex = closeButtonIndex + 1;
+
         html += `
             </table>
             <div style="margin-top: 20px; text-align: center;">
-                <button onclick="game.toggleLeaderboard()" 
-                    style="padding: 8px 20px; background: #666; border: none; color: white; cursor: pointer;">
+                <button id="closeButton"
+                    style="padding: 8px 20px; background: ${this.leaderboardState.selectedIndex === closeButtonIndex ? '#4CAF50' : '#666'}; border: none; color: white; cursor: pointer;">
                     Close
                 </button>
                 ${!this.isAdmin ? `
-                    <button onclick="game.toggleAdminLogin()" 
-                        style="padding: 8px 20px; background: #444; border: none; color: white; cursor: pointer; margin-left: 10px;">
+                    <button id="adminButton"
+                        style="padding: 8px 20px; background: ${this.leaderboardState.selectedIndex === adminButtonIndex ? '#4CAF50' : '#444'}; border: none; color: white; cursor: pointer; margin-left: 10px;">
                         Admin Login
                     </button>
                 ` : ''}
@@ -862,9 +887,63 @@ class Game {
             <div style="margin-top: 10px; text-align: center; color: #888; font-size: 12px;">
                 Last updated: ${new Date(this.localLeaderboard.lastUpdate).toLocaleString()}
             </div>
+            <div style="margin-top: 10px; text-align: center; color: #888; font-size: 12px;">
+                Use ↑↓ arrows to navigate, Enter to select, Esc to close
+            </div>
         `;
 
         this.leaderboardElement.innerHTML = html;
+    }
+
+    handleLeaderboardKeydown(e) {
+        if (!this.leaderboardOverlay.style.display === 'block') return;
+
+        const sortedLeaderboard = [...this.leaderboard].sort((a, b) => b.gold - a.gold);
+        const maxIndex = sortedLeaderboard.length + (this.isAdmin ? 1 : 2) - (this.playerName ? 0 : 1);
+
+        switch (e.key) {
+            case 'ArrowUp':
+                e.preventDefault();
+                this.leaderboardState.selectedIndex = Math.max(0, this.leaderboardState.selectedIndex - 1);
+                this.updateLeaderboardDisplay();
+                break;
+            case 'ArrowDown':
+                e.preventDefault();
+                this.leaderboardState.selectedIndex = Math.min(maxIndex, this.leaderboardState.selectedIndex + 1);
+                this.updateLeaderboardDisplay();
+                break;
+            case 'Enter':
+                e.preventDefault();
+                this.handleLeaderboardSelection();
+                break;
+            case 'Escape':
+                e.preventDefault();
+                this.toggleLeaderboard();
+                break;
+        }
+    }
+
+    handleLeaderboardSelection() {
+        const sortedLeaderboard = [...this.leaderboard].sort((a, b) => b.gold - a.gold);
+        const closeButtonIndex = sortedLeaderboard.length + (this.playerName ? 0 : 1);
+        const adminButtonIndex = closeButtonIndex + 1;
+
+        if (!this.playerName && this.leaderboardState.selectedIndex === 0) {
+            // Save name button selected
+            this.setPlayerName();
+        } else if (this.leaderboardState.selectedIndex === closeButtonIndex) {
+            // Close button selected
+            this.toggleLeaderboard();
+        } else if (!this.isAdmin && this.leaderboardState.selectedIndex === adminButtonIndex) {
+            // Admin login button selected
+            this.toggleAdminLogin();
+        } else if (this.isAdmin) {
+            // Remove entry selected
+            const selectedEntry = sortedLeaderboard[this.leaderboardState.selectedIndex - (this.playerName ? 0 : 1)];
+            if (selectedEntry) {
+                this.removeFromLeaderboard(selectedEntry.id);
+            }
+        }
     }
 
     setPlayerName() {
@@ -872,6 +951,7 @@ class Game {
         if (input && input.value.trim()) {
             this.playerName = input.value.trim();
             localStorage.setItem('playerName', this.playerName);
+            this.leaderboardState.selectedIndex = 0;
             this.updateLeaderboardDisplay();
             this.showNotification('Name saved! Your score will be updated automatically.');
         }
@@ -882,8 +962,14 @@ class Game {
         this.leaderboardOverlay.style.display = isVisible ? 'none' : 'block';
         this.leaderboardElement.style.display = isVisible ? 'none' : 'block';
         if (!isVisible) {
+            // Reset state when opening
+            this.leaderboardState = {
+                selectedIndex: 0,
+                isNameInput: false,
+                isAdminLogin: false
+            };
             // Force an immediate update when opening the leaderboard
-            this.loadLeaderboard();
+            this.syncLeaderboard();
         }
     }
 
@@ -901,8 +987,8 @@ class Game {
                 <div style="margin-bottom: 20px;">
                     <input type="text" id="playerNameInput" placeholder="Enter your name" 
                         style="padding: 5px; width: 200px; margin-right: 10px;">
-                    <button onclick="game.setPlayerName()" 
-                        style="padding: 5px 10px; background: #4CAF50; border: none; color: white; cursor: pointer;">
+                    <button id="saveNameButton"
+                        style="padding: 5px 10px; background: ${this.leaderboardState.selectedIndex === 0 ? '#4CAF50' : '#666'}; border: none; color: white; cursor: pointer;">
                         Save Name
                     </button>
                 </div>
@@ -921,8 +1007,11 @@ class Game {
 
         sortedLocalLeaderboard.forEach((entry, index) => {
             const isCurrentPlayer = entry.name === this.playerName;
+            const isSelected = index + (this.playerName ? 0 : 1) === this.leaderboardState.selectedIndex;
             html += `
-                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); ${isCurrentPlayer ? 'background: rgba(76, 175, 80, 0.2);' : ''}">
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); 
+                    ${isCurrentPlayer ? 'background: rgba(76, 175, 80, 0.2);' : ''}
+                    ${isSelected ? 'background: rgba(255, 215, 0, 0.2);' : ''}">
                     <td style="padding: 10px;">${index + 1}</td>
                     <td style="padding: 10px;">${entry.name}${isCurrentPlayer ? ' (You)' : ''}</td>
                     <td style="padding: 10px; text-align: right;">${entry.gold}</td>
@@ -938,22 +1027,29 @@ class Game {
             `;
         });
 
+        const buttonCount = this.isAdmin ? 1 : 2; // Close button + (Admin Login or Save Name)
+        const closeButtonIndex = sortedLocalLeaderboard.length + (this.playerName ? 0 : 1);
+        const adminButtonIndex = closeButtonIndex + 1;
+
         html += `
             </table>
             <div style="margin-top: 20px; text-align: center;">
-                <button onclick="game.toggleLeaderboard()" 
-                    style="padding: 8px 20px; background: #666; border: none; color: white; cursor: pointer;">
+                <button id="closeButton"
+                    style="padding: 8px 20px; background: ${this.leaderboardState.selectedIndex === closeButtonIndex ? '#4CAF50' : '#666'}; border: none; color: white; cursor: pointer;">
                     Close
                 </button>
                 ${!this.isAdmin ? `
-                    <button onclick="game.toggleAdminLogin()" 
-                        style="padding: 8px 20px; background: #444; border: none; color: white; cursor: pointer; margin-left: 10px;">
+                    <button id="adminButton"
+                        style="padding: 8px 20px; background: ${this.leaderboardState.selectedIndex === adminButtonIndex ? '#4CAF50' : '#444'}; border: none; color: white; cursor: pointer; margin-left: 10px;">
                         Admin Login
                     </button>
                 ` : ''}
             </div>
             <div style="margin-top: 10px; text-align: center; color: #888; font-size: 12px;">
                 Last updated: ${new Date(this.localLeaderboard.lastUpdate).toLocaleString()}
+            </div>
+            <div style="margin-top: 10px; text-align: center; color: #888; font-size: 12px;">
+                Use ↑↓ arrows to navigate, Enter to select, Esc to close
             </div>
         `;
 
@@ -2099,8 +2195,14 @@ class Game {
         this.leaderboardOverlay.style.display = isVisible ? 'none' : 'block';
         this.leaderboardElement.style.display = isVisible ? 'none' : 'block';
         if (!isVisible) {
+            // Reset state when opening
+            this.leaderboardState = {
+                selectedIndex: 0,
+                isNameInput: false,
+                isAdminLogin: false
+            };
             // Force an immediate update when opening the leaderboard
-            this.loadLeaderboard();
+            this.syncLeaderboard();
         }
     }
 }
