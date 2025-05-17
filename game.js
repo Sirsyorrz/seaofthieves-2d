@@ -261,6 +261,11 @@ class Game {
             "Snake Island": { x: 100, y: -150 }
         };
         
+        // Load saved island offsets
+        const savedOffsets = JSON.parse(localStorage.getItem('islandOffsets')) || {};
+        // Merge saved offsets with default offsets
+        this.textOffsets = { ...this.textOffsets, ...savedOffsets };
+        
         // Set up event listeners
         this.setupEventListeners();
         
@@ -1534,8 +1539,8 @@ class Game {
             this.ctx.textBaseline = 'middle';
             
             this.mappedIslands.forEach(island => {
-                // Apply saved offset if it exists
-                const offset = this.islandOffsets[island.name] || { x: 0, y: 0 };
+                // Get the offset for this island
+                const offset = this.textOffsets[island.name] || { x: 0, y: -50 };
                 const displayX = island.x + offset.x;
                 const displayY = island.y + offset.y;
             
