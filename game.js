@@ -38,75 +38,6 @@ class Game {
         this.cellWidth = this.mapWidth / this.gridSize;
         this.cellHeight = this.mapHeight / this.gridSize;
         
-        // Get random outpost for spawn
-        const randomOutpost = this.outposts[Math.floor(Math.random() * this.outposts.length)];
-        const outpostData = this.islands.find(island => island.name === randomOutpost);
-        const gridX = outpostData.grid.charCodeAt(0) - 65;
-        const gridY = parseInt(outpostData.grid.substring(1)) - 1;
-        
-        // Player position and rotation - spawn at random outpost
-        this.player = {
-            x: (gridX + 0.5) * this.cellWidth,
-            y: (gridY + 0.5) * this.cellHeight,
-            speed: 0,
-            rotation: 0,
-            width: 128,
-            height: 128,
-            maxSpeed: 8,
-            acceleration: 0.2,
-            deceleration: 0.98,
-            rotationSpeed: 0.05
-        };
-        
-        // Add collision detection properties
-        this.backgroundData = null;
-        this.backgroundImageLoaded = false;
-        
-        // Load images
-        this.mapImage = new Image();
-        this.mapImage.src = './assets/background.png';
-        this.mapImage.onload = () => {
-            // Create a temporary canvas to get image data
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = this.mapImage.width;
-            tempCanvas.height = this.mapImage.height;
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.drawImage(this.mapImage, 0, 0);
-            this.backgroundData = tempCtx.getImageData(0, 0, this.mapImage.width, this.mapImage.height).data;
-            this.backgroundImageLoaded = true;
-            
-            // Scan for islands and map them to grid positions
-            this.scanForIslands();
-            console.log('Background image loaded and islands mapped');
-        };
-        this.mapImage.onerror = (e) => {
-            console.error('Failed to load background image:', e);
-            console.log('Attempted to load from:', this.mapImage.src);
-            this.showNotification('Failed to load background image. Please refresh the page.');
-        };
-        
-        this.boatImage = new Image();
-        this.boatImage.src = './assets/boat.png';
-        this.boatImage.onerror = (e) => {
-            console.error('Failed to load boat image:', e);
-            console.log('Attempted to load from:', this.boatImage.src);
-            this.showNotification('Failed to load boat image. Please refresh the page.');
-        };
-        
-        // Movement keys
-        this.keys = {
-            w: false,
-            a: false,
-            d: false
-        };
-        
-        // Wave animation
-        this.waveOffset = 0;
-        this.waveSpeed = 0.02;
-        this.waveHeight = 5;
-        this.waveLength = 50;
-        this.waveGridSize = 200; // Size of wave grid cells
-        
         // Update outposts list
         this.outposts = [
             "Sanctuary Outpost",
@@ -246,14 +177,75 @@ class Game {
             { name: "Thieves' Haven", grid: "L20", type: "large", region: "The Ancient Isles" },
             { name: "Wanderers Refuge", grid: "F12", type: "large", region: "The Shores of Plenty" }
         ];
-
-        // Convert grid coordinates to x,y coordinates
-        this.islands.forEach(island => {
-            const gridX = island.grid.charCodeAt(0) - 65; // Convert A-Z to 0-25
-            const gridY = parseInt(island.grid.substring(1)) - 1; // Convert 1-26 to 0-25
-            island.x = (gridX + 0.5) * this.cellWidth;
-            island.y = (gridY + 0.5) * this.cellHeight;
-        });
+        
+        // Get random outpost for spawn
+        const randomOutpost = this.outposts[Math.floor(Math.random() * this.outposts.length)];
+        const outpostData = this.islands.find(island => island.name === randomOutpost);
+        const gridX = outpostData.grid.charCodeAt(0) - 65;
+        const gridY = parseInt(outpostData.grid.substring(1)) - 1;
+        
+        // Player position and rotation - spawn at random outpost
+        this.player = {
+            x: (gridX + 0.5) * this.cellWidth,
+            y: (gridY + 0.5) * this.cellHeight,
+            speed: 0,
+            rotation: 0,
+            width: 128,
+            height: 128,
+            maxSpeed: 8,
+            acceleration: 0.2,
+            deceleration: 0.98,
+            rotationSpeed: 0.05
+        };
+        
+        // Add collision detection properties
+        this.backgroundData = null;
+        this.backgroundImageLoaded = false;
+        
+        // Load images
+        this.mapImage = new Image();
+        this.mapImage.src = './assets/background.png';
+        this.mapImage.onload = () => {
+            // Create a temporary canvas to get image data
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = this.mapImage.width;
+            tempCanvas.height = this.mapImage.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(this.mapImage, 0, 0);
+            this.backgroundData = tempCtx.getImageData(0, 0, this.mapImage.width, this.mapImage.height).data;
+            this.backgroundImageLoaded = true;
+            
+            // Scan for islands and map them to grid positions
+            this.scanForIslands();
+            console.log('Background image loaded and islands mapped');
+        };
+        this.mapImage.onerror = (e) => {
+            console.error('Failed to load background image:', e);
+            console.log('Attempted to load from:', this.mapImage.src);
+            this.showNotification('Failed to load background image. Please refresh the page.');
+        };
+        
+        this.boatImage = new Image();
+        this.boatImage.src = './assets/boat.png';
+        this.boatImage.onerror = (e) => {
+            console.error('Failed to load boat image:', e);
+            console.log('Attempted to load from:', this.boatImage.src);
+            this.showNotification('Failed to load boat image. Please refresh the page.');
+        };
+        
+        // Movement keys
+        this.keys = {
+            w: false,
+            a: false,
+            d: false
+        };
+        
+        // Wave animation
+        this.waveOffset = 0;
+        this.waveSpeed = 0.02;
+        this.waveHeight = 5;
+        this.waveLength = 50;
+        this.waveGridSize = 200; // Size of wave grid cells
         
         // Add text offset properties
         this.textOffsets = {
