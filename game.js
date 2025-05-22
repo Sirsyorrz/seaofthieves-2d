@@ -549,7 +549,7 @@ class Game {
                 case 'ArrowUp':
                     e.preventDefault();
                     if (this.menuState.currentMenu === 'main') {
-                        this.menuState.selectedIndex = Math.max(0, this.menuState.selectedIndex - 1);
+                    this.menuState.selectedIndex = Math.max(0, this.menuState.selectedIndex - 1);
                     } else if (this.menuState.currentMenu === 'quest') {
                         this.menuState.selectedIndex = Math.max(0, this.menuState.selectedIndex - 1);
                     } else if (this.menuState.currentMenu === 'shop') {
@@ -2107,13 +2107,8 @@ class Game {
         if (this.shipColors && this.currentShipColor >= 0 && this.currentShipColor < this.shipColors.length) {
             const color = this.shipColors[this.currentShipColor];
             if (color && color.hue !== undefined && color.hue !== 0) {
-                // Add glow effect
-                this.ctx.shadowColor = `hsl(${color.hue}, 100%, 50%)`;
-                this.ctx.shadowBlur = 20;
-                this.ctx.shadowOffsetX = 0;
-                this.ctx.shadowOffsetY = 0;
-                
-                this.ctx.filter = `hue-rotate(${color.hue}deg) saturate(1.5)`;
+                // Increased saturation for more vibrant colors
+                this.ctx.filter = `hue-rotate(${color.hue}deg) saturate(2.0)`;
             }
         }
         
@@ -2125,10 +2120,8 @@ class Game {
             this.player.height
         );
         
-        // Reset filter and shadow
+        // Reset filter
         this.ctx.filter = 'none';
-        this.ctx.shadowColor = 'transparent';
-        this.ctx.shadowBlur = 0;
         this.ctx.restore();
         
         // Draw island names using mapped positions
