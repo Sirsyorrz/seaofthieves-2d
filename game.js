@@ -4,6 +4,20 @@ class Game {
         this.ctx = this.canvas.getContext('2d');
         this.gridInfo = document.getElementById('currentGrid');
         
+        // Reset cosmetics and gold on refresh
+        localStorage.removeItem('shipColors');
+        localStorage.removeItem('currentShipColor');
+        localStorage.removeItem('shipTrails');
+        localStorage.removeItem('currentShipTrail');
+        
+        // Initialize unstuck state first
+        this.unstuckState = {
+            isHolding: false,
+            holdStartTime: 0,
+            holdDuration: 2000, // 2 seconds
+            progressBar: null
+        };
+        
         // Add gold counter
         this.gold = 2500;
         this.goldElement = document.createElement('div');
@@ -540,15 +554,25 @@ class Game {
             switch (e.key) {
                 case 'ArrowUp':
                     e.preventDefault();
-                    this.menuState.selectedIndex = Math.max(0, this.menuState.selectedIndex - 1);
+                    if (this.menuState.currentMenu === 'main') {
+                        this.menuState.selectedIndex = Math.max(0, this.menuState.selectedIndex - 1);
+                    } else if (this.menuState.currentMenu === 'quest') {
+                        this.menuState.selectedIndex = Math.max(0, this.menuState.selectedIndex - 1);
+                    } else if (this.menuState.currentMenu === 'shop') {
+                        this.menuState.selectedIndex = Math.max(0, this.menuState.selectedIndex - 1);
+                    }
                     this.updateCurrentMenu();
                     break;
                 case 'ArrowDown':
                     e.preventDefault();
                     if (this.menuState.currentMenu === 'main') {
-                        this.menuState.selectedIndex = Math.min(1, this.menuState.selectedIndex + 1);
-                    } else {
+                        const isOutpost = this.outposts.includes(this.currentOutpost);
+                        const maxIndex = isOutpost ? 2 : 1; // 2 options for outposts, 1 for seaposts
+                        this.menuState.selectedIndex = Math.min(maxIndex, this.menuState.selectedIndex + 1);
+                    } else if (this.menuState.currentMenu === 'quest') {
                         this.menuState.selectedIndex = Math.min(this.menuState.quests.length, this.menuState.selectedIndex + 1);
+                    } else if (this.menuState.currentMenu === 'shop') {
+                        this.menuState.selectedIndex = Math.min(this.shipColors.length, this.menuState.selectedIndex + 1);
                     }
                     this.updateCurrentMenu();
                     break;
@@ -632,64 +656,6 @@ class Game {
         // Start game loop
         this.gameLoop();
 
-        // Add escape menu properties
-        this.escapeMenuElement = document.createElement('div');
-        this.escapeMenuElement.style.position = 'fixed';
-        this.escapeMenuElement.style.top = '50%';
-        this.escapeMenuElement.style.left = '50%';
-        this.escapeMenuElement.style.transform = 'translate(-50%, -50%)';
-        this.escapeMenuElement.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
-        this.escapeMenuElement.style.padding = '20px';
-        this.escapeMenuElement.style.borderRadius = '10px';
-        this.escapeMenuElement.style.color = 'white';
-        this.escapeMenuElement.style.fontFamily = 'Arial';
-        this.escapeMenuElement.style.display = 'none';
-        this.escapeMenuElement.style.zIndex = '9999';
-        this.escapeMenuElement.style.minWidth = '300px';
-        document.body.appendChild(this.escapeMenuElement);
-
-        // Add escape menu state
-        this.escapeMenuState = {
-            isOpen: false,
-            selectedIndex: 0
-        };
-
-        // Add event listener for ESC key
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                if (this.showMenu) {
-                    // If merchant menu is open, close it
-                    this.closeMenu();
-                } else {
-                    // Toggle escape menu
-                    this.toggleEscapeMenu();
-                }
-                e.preventDefault();
-            }
-        });
-
-        // Add keyboard navigation for escape menu
-        window.addEventListener('keydown', (e) => {
-            if (!this.escapeMenuState.isOpen) return;
-
-            switch (e.key) {
-                case 'ArrowUp':
-                    e.preventDefault();
-                    this.escapeMenuState.selectedIndex = Math.max(0, this.escapeMenuState.selectedIndex - 1);
-                    this.updateEscapeMenu();
-                    break;
-                case 'ArrowDown':
-                    e.preventDefault();
-                    this.escapeMenuState.selectedIndex = Math.min(1, this.escapeMenuState.selectedIndex + 1);
-                    this.updateEscapeMenu();
-                    break;
-                case 'Enter':
-                    e.preventDefault();
-                    this.handleEscapeMenuSelection();
-                    break;
-            }
-        });
-
         // Add fishing game properties
         this.fishingGame = {
             isActive: false,
@@ -739,7 +705,7 @@ class Game {
         // Add event listeners for F key
         window.addEventListener('keydown', (e) => {
             if (e.key.toLowerCase() === 'f') {
-                if (!this.fishingGame.isActive && !this.showMenu && !this.escapeMenuState.isOpen) {
+                if (!this.fishingGame.isActive && !this.showMenu) {
                     this.startFishingGame();
                 } else if (this.fishingGame.isActive) {
                     this.fishingGame.isReeling = true;
@@ -759,6 +725,152 @@ class Game {
                 this.sellFish();
             }
         });
+
+        // Add ship customization properties
+        this.shipColors = [
+            { name: "Default", hue: 0, price: 0, owned: true },
+            { name: "Red", hue: 360, price: 1000, owned: false },
+            { name: "Green", hue: 120, price: 1000, owned: false },
+            { name: "Blue", hue: 240, price: 1000, owned: false },
+            { name: "Purple", hue: 280, price: 1500, owned: false },
+            { name: "Gold", hue: 45, price: 2000, owned: false },
+            { name: "Pink", hue: 300, price: 1500, owned: false },
+            { name: "Cyan", hue: 180, price: 1500, owned: false }
+        ];
+
+        this.shipTrails = [
+            { name: "None", effect: "none", price: 0, owned: true },
+            { name: "Bubbles", effect: "bubbles", price: 1500, owned: false },
+            { name: "Fire", effect: "fire", price: 2000, owned: false },
+            { name: "Rainbow", effect: "rainbow", price: 2500, owned: false },
+            { name: "Sparkles", effect: "sparkles", price: 1500, owned: false }
+        ];
+        
+        this.currentShipColor = 0; // Index of current color
+        this.currentShipTrail = 0; // Index of current trail
+
+        // Load saved colors from localStorage
+        const savedColors = localStorage.getItem('shipColors');
+        if (savedColors) {
+            const parsedColors = JSON.parse(savedColors);
+            this.shipColors = this.shipColors.map((color, index) => ({
+                ...color,
+                owned: parsedColors[index]?.owned || false
+            }));
+        }
+
+        // Load saved trails from localStorage
+        const savedTrails = localStorage.getItem('shipTrails');
+        if (savedTrails) {
+            const parsedTrails = JSON.parse(savedTrails);
+            this.shipTrails = this.shipTrails.map((trail, index) => ({
+                ...trail,
+                owned: parsedTrails[index]?.owned || false
+            }));
+        }
+
+        // Load current color from localStorage
+        const savedCurrentColor = localStorage.getItem('currentShipColor');
+        if (savedCurrentColor !== null) {
+            this.currentShipColor = parseInt(savedCurrentColor);
+        }
+
+        // Load current trail from localStorage
+        const savedCurrentTrail = localStorage.getItem('currentShipTrail');
+        if (savedCurrentTrail !== null) {
+            this.currentShipTrail = parseInt(savedCurrentTrail);
+        }
+        
+        // Create shop menu element
+        this.shopMenuElement = document.createElement('div');
+        this.shopMenuElement.style.position = 'fixed';
+        this.shopMenuElement.style.top = '50%';
+        this.shopMenuElement.style.left = '50%';
+        this.shopMenuElement.style.transform = 'translate(-50%, -50%)';
+        this.shopMenuElement.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+        this.shopMenuElement.style.padding = '20px';
+        this.shopMenuElement.style.borderRadius = '10px';
+        this.shopMenuElement.style.color = 'white';
+        this.shopMenuElement.style.fontFamily = 'Arial';
+        this.shopMenuElement.style.display = 'none';
+        this.shopMenuElement.style.zIndex = '9999';
+        this.shopMenuElement.style.maxHeight = '80vh';
+        this.shopMenuElement.style.overflowY = 'auto';
+        this.shopMenuElement.style.minWidth = '400px';
+        document.body.appendChild(this.shopMenuElement);
+
+        // Create color menu element
+        this.colorMenuElement = document.createElement('div');
+        this.colorMenuElement.style.position = 'fixed';
+        this.colorMenuElement.style.top = '50%';
+        this.colorMenuElement.style.left = '50%';
+        this.colorMenuElement.style.transform = 'translate(-50%, -50%)';
+        this.colorMenuElement.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+        this.colorMenuElement.style.padding = '20px';
+        this.colorMenuElement.style.borderRadius = '10px';
+        this.colorMenuElement.style.color = 'white';
+        this.colorMenuElement.style.fontFamily = 'Arial';
+        this.colorMenuElement.style.display = 'none';
+        this.colorMenuElement.style.zIndex = '9999';
+        this.colorMenuElement.style.maxHeight = '80vh';
+        this.colorMenuElement.style.overflowY = 'auto';
+        this.colorMenuElement.style.minWidth = '400px';
+        document.body.appendChild(this.colorMenuElement);
+
+        // Create trail menu element
+        this.trailMenuElement = document.createElement('div');
+        this.trailMenuElement.style.position = 'fixed';
+        this.trailMenuElement.style.top = '50%';
+        this.trailMenuElement.style.left = '50%';
+        this.trailMenuElement.style.transform = 'translate(-50%, -50%)';
+        this.trailMenuElement.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+        this.trailMenuElement.style.padding = '20px';
+        this.trailMenuElement.style.borderRadius = '10px';
+        this.trailMenuElement.style.color = 'white';
+        this.trailMenuElement.style.fontFamily = 'Arial';
+        this.trailMenuElement.style.display = 'none';
+        this.trailMenuElement.style.zIndex = '9999';
+        this.trailMenuElement.style.maxHeight = '80vh';
+        this.trailMenuElement.style.overflowY = 'auto';
+        this.trailMenuElement.style.minWidth = '400px';
+        document.body.appendChild(this.trailMenuElement);
+
+        // Add event listeners for U key
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'u' && !this.unstuckState.isHolding) {
+                this.unstuckState.isHolding = true;
+                this.unstuckState.holdStartTime = Date.now();
+                this.showUnstuckProgressBar();
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.key.toLowerCase() === 'u') {
+                this.unstuckState.isHolding = false;
+                this.hideUnstuckProgressBar();
+            }
+        });
+
+        // --- Keyboard Shortcuts Overlay ---
+        this.shortcutsOverlay = document.createElement('div');
+        this.shortcutsOverlay.style.position = 'fixed';
+        this.shortcutsOverlay.style.left = '10px';
+        this.shortcutsOverlay.style.bottom = '10px';
+        this.shortcutsOverlay.style.background = 'rgba(0,0,0,0.7)';
+        this.shortcutsOverlay.style.color = '#ffd700';
+        this.shortcutsOverlay.style.fontFamily = 'Arial';
+        this.shortcutsOverlay.style.fontSize = '14px';
+        this.shortcutsOverlay.style.padding = '10px 16px 10px 12px';
+        this.shortcutsOverlay.style.borderRadius = '8px';
+        this.shortcutsOverlay.style.zIndex = '1001';
+        this.shortcutsOverlay.style.pointerEvents = 'none';
+        this.shortcutsOverlay.innerHTML = `
+            <div style="margin-bottom: 2px;"><b>Keyboard Shortcuts</b></div>
+            <div><span style="color:#fff;">F</span>: Fishing</div>
+            <div><span style="color:#fff;">U</span>: Unstuck (hold 2s)</div>
+            <div><span style="color:#fff;">E</span>: Interact</div>
+            <div><span style="color:#fff;">Arrows/Enter/Esc</span>: Menu Nav</div>
+        `;
+        document.body.appendChild(this.shortcutsOverlay);
     }
 
     updateGoldDisplay() {
@@ -1221,7 +1333,12 @@ class Game {
     updateMainMenu() {
         if (!this.currentOutpost) return;
 
-        const options = ['Merchant Quests', 'Close'];
+        // Only show ship customization at outposts, not seaposts
+        const isOutpost = this.outposts.includes(this.currentOutpost);
+        const options = isOutpost ? 
+            ['Merchant Quests', 'Ship Customization', 'Close'] : 
+            ['Merchant Quests', 'Close'];
+
         this.menuElement.innerHTML = `
             <h2 style="margin-top: 0; color: #ffd700;">${this.currentOutpost}</h2>
             <div style="margin-bottom: 20px;">
@@ -1239,6 +1356,161 @@ class Game {
                 Use ↑↓ arrows to navigate, Enter to select, Esc to close
             </div>
         `;
+    }
+
+    updateShopMenu() {
+        if (!this.currentOutpost) return;
+
+        let html = `
+            <h2 style="margin-top: 0; color: #ffd700;">Ship Customization</h2>
+            <div style="margin-bottom: 20px;">
+        `;
+
+        this.shipColors.forEach((color, index) => {
+            const isOwned = color.owned;
+            const isEquipped = index === this.currentShipColor;
+            const canAfford = this.gold >= color.price;
+            const isSelected = index === this.menuState.selectedIndex;
+            
+            html += `
+                <div style="
+                    border: 1px solid #444;
+                    padding: 10px;
+                    margin-bottom: 10px;
+                    border-radius: 5px;
+                    background-color: ${isSelected ? 'rgba(76, 175, 80, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                ">
+                    <div style="display: flex; align-items: center;">
+                        <div style="
+                            width: 30px;
+                            height: 30px;
+                            background-color: hsl(${color.hue}, 100%, 50%);
+                            border-radius: 5px;
+                            margin-right: 10px;
+                            box-shadow: 0 0 10px hsl(${color.hue}, 100%, 50%);
+                        "></div>
+                        <div>
+                            <h4 style="margin: 0 0 5px 0; color: #ffd700;">${color.name}</h4>
+                            <p style="margin: 0; color: ${isOwned ? '#4CAF50' : canAfford ? '#4CAF50' : '#ff4444'}">
+                                ${isOwned ? 'Owned' : `${color.price} gold`}
+                            </p>
+                        </div>
+                    </div>
+                    <div style="color: ${isEquipped ? '#4CAF50' : '#888'}">
+                        ${isEquipped ? 'Equipped' : isOwned ? 'Press Enter to equip' : canAfford ? 'Press Enter to purchase' : 'Cannot afford'}
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+            </div>
+            <div style="
+                padding: 10px 20px;
+                margin: 4px 2px;
+                border-radius: 5px;
+                background-color: ${this.menuState.selectedIndex === this.shipColors.length ? '#4CAF50' : 'transparent'};
+                cursor: pointer;
+            ">Back to Menu</div>
+            <div style="color: #888; font-size: 12px;">
+                Use ↑↓ arrows to navigate, Enter to select, Esc to close
+            </div>
+        `;
+
+        this.shopMenuElement.innerHTML = html;
+    }
+
+    handleMenuSelection() {
+        if (this.menuState.currentMenu === 'main') {
+            const isOutpost = this.outposts.includes(this.currentOutpost);
+            if (this.menuState.selectedIndex === 0) {
+                // Merchant Quests
+                this.menuState.currentMenu = 'quest';
+                this.menuState.selectedIndex = 0;
+                this.menuElement.style.display = 'none';
+                this.questMenuElement.style.display = 'block';
+                this.updateQuestMenu();
+            } else if (isOutpost && this.menuState.selectedIndex === 1) {
+                // Ship Customization (only at outposts)
+                this.menuState.currentMenu = 'shop';
+                this.menuState.selectedIndex = 0;
+                this.menuElement.style.display = 'none';
+                this.shopMenuElement.style.display = 'block';
+                this.updateShopMenu();
+            } else {
+                // Close
+                this.closeMenu();
+            }
+        } else if (this.menuState.currentMenu === 'shop') {
+            if (this.menuState.selectedIndex === this.shipColors.length) {
+                // Back to Menu
+                this.menuState.currentMenu = 'main';
+                this.menuState.selectedIndex = 0;
+                this.shopMenuElement.style.display = 'none';
+                this.menuElement.style.display = 'block';
+                this.updateMainMenu();
+            } else {
+                const selectedColor = this.shipColors[this.menuState.selectedIndex];
+                if (selectedColor.owned) {
+                    // If already owned, just equip it
+                    this.currentShipColor = this.menuState.selectedIndex;
+                    localStorage.setItem('currentShipColor', this.currentShipColor);
+                    this.updateShopMenu();
+                    this.showNotification(`Equipped ${selectedColor.name} ship color!`);
+                } else if (selectedColor.price <= this.gold) {
+                    // Purchase new color
+                    this.gold -= selectedColor.price;
+                    selectedColor.owned = true;
+                    this.currentShipColor = this.menuState.selectedIndex;
+                    this.updateGoldDisplay();
+                    this.updateShopMenu();
+                    this.showNotification(`Purchased ${selectedColor.name} ship color!`);
+                    
+                    // Save to localStorage
+                    localStorage.setItem('shipColors', JSON.stringify(this.shipColors));
+                    localStorage.setItem('currentShipColor', this.currentShipColor);
+                }
+            }
+        } else {
+            // Quest menu handling (existing code)
+            if (this.menuState.selectedIndex === this.menuState.quests.length) {
+                // Back to Menu
+                this.menuState.currentMenu = 'main';
+                this.menuState.selectedIndex = 0;
+                this.questMenuElement.style.display = 'none';
+                this.menuElement.style.display = 'block';
+                this.updateMainMenu();
+            } else {
+                const selectedQuest = this.menuState.quests[this.menuState.selectedIndex];
+                if (!selectedQuest) return;
+
+                if (selectedQuest.status === 'available') {
+                    this.acceptQuest(selectedQuest.id);
+                    this.menuState.quests = [];
+                    this.menuState.selectedIndex = 0;
+                    this.updateQuestMenu();
+                } else if (selectedQuest.status === 'active') {
+                    this.completeQuest(selectedQuest.id);
+                    this.menuState.quests = [];
+                    this.menuState.selectedIndex = 0;
+                    this.updateQuestMenu();
+                }
+            }
+        }
+    }
+
+    closeMenu() {
+        this.showMenu = false;
+        this.menuOverlay.style.display = 'none';
+        this.menuElement.style.display = 'none';
+        this.questMenuElement.style.display = 'none';
+        this.shopMenuElement.style.display = 'none';
+        this.menuState.quests = [];
+        this.menuState.selectedIndex = 0;
+        this.menuState.currentMenu = 'main';
     }
 
     updateQuestMenu() {
@@ -1354,73 +1626,11 @@ class Game {
     updateCurrentMenu() {
         if (this.menuState.currentMenu === 'main') {
             this.updateMainMenu();
-        } else {
+        } else if (this.menuState.currentMenu === 'quest') {
             this.updateQuestMenu();
+        } else if (this.menuState.currentMenu === 'shop') {
+            this.updateShopMenu();
         }
-    }
-
-    handleMenuSelection() {
-        if (this.menuState.currentMenu === 'main') {
-            if (this.menuState.selectedIndex === 0) {
-                // Merchant Quests
-                this.menuState.currentMenu = 'quest';
-                this.menuState.selectedIndex = 0;
-                this.menuElement.style.display = 'none';
-                this.questMenuElement.style.display = 'block';
-                this.updateQuestMenu();
-            } else {
-                // Close
-                this.closeMenu();
-            }
-        } else {
-            // Quest menu
-            if (this.menuState.selectedIndex === this.menuState.quests.length) {
-                // Back to Menu
-                this.menuState.currentMenu = 'main';
-                this.menuState.selectedIndex = 0;
-                this.questMenuElement.style.display = 'none';
-                this.menuElement.style.display = 'block';
-                this.updateMainMenu();
-            } else {
-                const selectedQuest = this.menuState.quests[this.menuState.selectedIndex];
-                console.log('Selected quest:', selectedQuest); // Debug log
-
-                if (!selectedQuest) {
-                    console.log('No quest selected'); // Debug log
-                    return;
-                }
-
-                if (selectedQuest.status === 'available') {
-                    console.log('Attempting to accept quest:', selectedQuest.id); // Debug log
-                    // Accept quest
-                    this.acceptQuest(selectedQuest.id);
-                    // Clear quest selection after accepting
-                    this.menuState.quests = [];
-                    this.menuState.selectedIndex = 0;
-                    // Update the quest menu to show new state
-                    this.updateQuestMenu();
-                } else if (selectedQuest.status === 'active') {
-                    console.log('Attempting to complete quest:', selectedQuest.id); // Debug log
-                    // Complete quest
-                    this.completeQuest(selectedQuest.id);
-                    // Clear quest selection after completing
-                    this.menuState.quests = [];
-                    this.menuState.selectedIndex = 0;
-                    // Update the quest menu to show new state
-                    this.updateQuestMenu();
-                }
-            }
-        }
-    }
-
-    closeMenu() {
-        this.showMenu = false;
-        this.menuOverlay.style.display = 'none';
-        this.menuElement.style.display = 'none';
-        this.questMenuElement.style.display = 'none';
-        // Clear quest selection when closing menu
-        this.menuState.quests = [];
-        this.menuState.selectedIndex = 0;
     }
 
     acceptQuest(questId) {
@@ -1858,6 +2068,21 @@ class Game {
         if (this.fishingGame && this.fishingGame.isActive) {
             this.updateFishingGame();
         }
+
+        // Unstuck progress bar update
+        if (this.unstuckState.isHolding) {
+            const elapsed = Date.now() - this.unstuckState.holdStartTime;
+            const percent = Math.min(1, elapsed / this.unstuckState.holdDuration);
+            if (this.unstuckState.progressBar) {
+                const inner = this.unstuckState.progressBar.querySelector('#unstuck-bar-inner');
+                if (inner) inner.style.width = `${Math.floor(percent * 200)}px`;
+            }
+            if (percent >= 1) {
+                this.unstuckState.isHolding = false;
+                this.hideUnstuckProgressBar();
+                this.teleportToAncientSpire();
+            }
+        }
     }
     
     draw() {
@@ -1940,10 +2165,25 @@ class Game {
             }
         }
         
-        // Draw player boat
+        // Draw player boat with color
         this.ctx.save();
         this.ctx.translate(this.player.x, this.player.y);
         this.ctx.rotate(this.player.rotation);
+        
+        // Apply color filter with safety checks and increased saturation
+        if (this.shipColors && this.currentShipColor >= 0 && this.currentShipColor < this.shipColors.length) {
+            const color = this.shipColors[this.currentShipColor];
+            if (color && color.hue !== undefined && color.hue !== 0) {
+                // Add glow effect
+                this.ctx.shadowColor = `hsl(${color.hue}, 100%, 50%)`;
+                this.ctx.shadowBlur = 20;
+                this.ctx.shadowOffsetX = 0;
+                this.ctx.shadowOffsetY = 0;
+                
+                this.ctx.filter = `hue-rotate(${color.hue}deg) saturate(1.5)`;
+            }
+        }
+        
         this.ctx.drawImage(
             this.boatImage,
             -this.player.width / 2,
@@ -1951,6 +2191,11 @@ class Game {
             this.player.width,
             this.player.height
         );
+        
+        // Reset filter and shadow
+        this.ctx.filter = 'none';
+        this.ctx.shadowColor = 'transparent';
+        this.ctx.shadowBlur = 0;
         this.ctx.restore();
         
         // Draw island names using mapped positions
@@ -2026,59 +2271,6 @@ class Game {
         setTimeout(() => {
             this.notificationElement.style.display = 'none';
         }, duration);
-    }
-
-    toggleEscapeMenu() {
-        this.escapeMenuState.isOpen = !this.escapeMenuState.isOpen;
-        this.escapeMenuElement.style.display = this.escapeMenuState.isOpen ? 'block' : 'none';
-        this.escapeMenuState.selectedIndex = 0;
-        this.updateEscapeMenu();
-    }
-
-    updateEscapeMenu() {
-        const options = ['Unstuck', 'Close'];
-        this.escapeMenuElement.innerHTML = `
-            <h2 style="margin-top: 0; color: #ffd700;">Escape Menu</h2>
-            <div style="margin-bottom: 20px;">
-                ${options.map((option, index) => `
-                    <div style="
-                        padding: 10px 20px;
-                        margin: 4px 2px;
-                        border-radius: 5px;
-                        background-color: ${index === this.escapeMenuState.selectedIndex ? '#4CAF50' : 'transparent'};
-                        cursor: pointer;
-                    ">${option}</div>
-                `).join('')}
-            </div>
-            <div style="color: #888; font-size: 12px;">
-                Use ↑↓ arrows to navigate, Enter to select, Esc to close
-            </div>
-        `;
-    }
-
-    handleEscapeMenuSelection() {
-        switch (this.escapeMenuState.selectedIndex) {
-            case 0: // Unstuck
-                this.unstuckPlayer();
-                this.toggleEscapeMenu();
-                break;
-            case 1: // Close
-                this.toggleEscapeMenu();
-                break;
-        }
-    }
-
-    unstuckPlayer() {
-        // Teleport player to Ancient Spire Outpost (P17)
-        const ancientSpireGrid = "P17";
-        const gridX = ancientSpireGrid.charCodeAt(0) - 65;
-        const gridY = parseInt(ancientSpireGrid.substring(1)) - 1;
-        
-        this.player.x = (gridX + 0.5) * this.cellWidth;
-        this.player.y = (gridY + 0.5) * this.cellHeight;
-        this.player.speed = 0; // Stop the boat
-        
-        this.showNotification('Teleported to Ancient Spire Outpost!');
     }
 
     startFishingGame() {
@@ -2277,6 +2469,48 @@ class Game {
         
         // Show notification
         this.showNotification(`Sold all fish for ${totalValue} gold!`);
+    }
+
+    showUnstuckProgressBar() {
+        if (!this.unstuckState.progressBar) {
+            this.unstuckState.progressBar = document.createElement('div');
+            this.unstuckState.progressBar.style.position = 'fixed';
+            this.unstuckState.progressBar.style.left = '50%';
+            this.unstuckState.progressBar.style.bottom = '80px';
+            this.unstuckState.progressBar.style.transform = 'translateX(-50%)';
+            this.unstuckState.progressBar.style.width = '220px';
+            this.unstuckState.progressBar.style.height = '24px';
+            this.unstuckState.progressBar.style.background = 'rgba(0,0,0,0.8)';
+            this.unstuckState.progressBar.style.border = '2px solid #ffd700';
+            this.unstuckState.progressBar.style.borderRadius = '12px';
+            this.unstuckState.progressBar.style.zIndex = '1002';
+            this.unstuckState.progressBar.style.display = 'flex';
+            this.unstuckState.progressBar.style.alignItems = 'center';
+            this.unstuckState.progressBar.style.justifyContent = 'center';
+            this.unstuckState.progressBar.innerHTML = `
+                <div id="unstuck-bar-inner" style="height: 12px; width: 0; background: linear-gradient(90deg,#ffd700,#fff700); border-radius: 6px;"></div>
+                <span style="position:absolute; left:0; right:0; text-align:center; color:#ffd700; font-size:13px;">Hold U to Unstuck...</span>
+            `;
+            document.body.appendChild(this.unstuckState.progressBar);
+        }
+        this.unstuckState.progressBar.style.display = 'flex';
+    }
+
+    hideUnstuckProgressBar() {
+        if (this.unstuckState.progressBar) {
+            this.unstuckState.progressBar.style.display = 'none';
+        }
+    }
+
+    teleportToAncientSpire() {
+        // Teleport player to Ancient Spire Outpost (P17)
+        const ancientSpireGrid = "P17";
+        const gridX = ancientSpireGrid.charCodeAt(0) - 65;
+        const gridY = parseInt(ancientSpireGrid.substring(1)) - 1;
+        this.player.x = (gridX + 0.5) * this.cellWidth;
+        this.player.y = (gridY + 0.5) * this.cellHeight;
+        this.player.speed = 0;
+        this.showNotification('Teleported to Ancient Spire Outpost!');
     }
 }
 
