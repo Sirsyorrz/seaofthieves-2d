@@ -4,12 +4,6 @@ class Game {
         this.ctx = this.canvas.getContext('2d');
         this.gridInfo = document.getElementById('currentGrid');
         
-        // Reset cosmetics and gold on refresh
-        localStorage.removeItem('shipColors');
-        localStorage.removeItem('currentShipColor');
-        localStorage.removeItem('shipTrails');
-        localStorage.removeItem('currentShipTrail');
-        
         // Initialize unstuck state first
         this.unstuckState = {
             isHolding: false,
@@ -729,57 +723,32 @@ class Game {
         // Add ship customization properties
         this.shipColors = [
             { name: "Default", hue: 0, price: 0, owned: true },
-            { name: "Red", hue: 360, price: 1000, owned: false },
-            { name: "Green", hue: 120, price: 1000, owned: false },
-            { name: "Blue", hue: 240, price: 1000, owned: false },
-            { name: "Purple", hue: 280, price: 1500, owned: false },
-            { name: "Gold", hue: 45, price: 2000, owned: false },
-            { name: "Pink", hue: 300, price: 1500, owned: false },
-            { name: "Cyan", hue: 180, price: 1500, owned: false }
-        ];
-
-        this.shipTrails = [
-            { name: "None", effect: "none", price: 0, owned: true },
-            { name: "Bubbles", effect: "bubbles", price: 1500, owned: false },
-            { name: "Fire", effect: "fire", price: 2000, owned: false },
-            { name: "Rainbow", effect: "rainbow", price: 2500, owned: false },
-            { name: "Sparkles", effect: "sparkles", price: 1500, owned: false }
+            { name: "Red", hue: 360, price: 2500, owned: false },
+            { name: "Green", hue: 120, price: 3750, owned: false },
+            { name: "Blue", hue: 240, price: 5000, owned: false },
+            { name: "Cyan", hue: 180, price: 7500, owned: false },
+            { name: "Pink", hue: 300, price: 12500, owned: false },
+            { name: "Purple", hue: 280, price: 25000, owned: false },
+            { name: "Gold", hue: 45, price: 50000, owned: false }
         ];
         
         this.currentShipColor = 0; // Index of current color
-        this.currentShipTrail = 0; // Index of current trail
 
-        // Load saved colors from localStorage
-        const savedColors = localStorage.getItem('shipColors');
-        if (savedColors) {
-            const parsedColors = JSON.parse(savedColors);
-            this.shipColors = this.shipColors.map((color, index) => ({
-                ...color,
-                owned: parsedColors[index]?.owned || false
-            }));
-        }
+        // Remove localStorage loading for colors
+        // const savedColors = localStorage.getItem('shipColors');
+        // if (savedColors) {
+        //     const parsedColors = JSON.parse(savedColors);
+        //     this.shipColors = this.shipColors.map((color, index) => ({
+        //         ...color,
+        //         owned: parsedColors[index]?.owned || false
+        //     }));
+        // }
 
-        // Load saved trails from localStorage
-        const savedTrails = localStorage.getItem('shipTrails');
-        if (savedTrails) {
-            const parsedTrails = JSON.parse(savedTrails);
-            this.shipTrails = this.shipTrails.map((trail, index) => ({
-                ...trail,
-                owned: parsedTrails[index]?.owned || false
-            }));
-        }
-
-        // Load current color from localStorage
-        const savedCurrentColor = localStorage.getItem('currentShipColor');
-        if (savedCurrentColor !== null) {
-            this.currentShipColor = parseInt(savedCurrentColor);
-        }
-
-        // Load current trail from localStorage
-        const savedCurrentTrail = localStorage.getItem('currentShipTrail');
-        if (savedCurrentTrail !== null) {
-            this.currentShipTrail = parseInt(savedCurrentTrail);
-        }
+        // Remove localStorage loading for current color
+        // const savedCurrentColor = localStorage.getItem('currentShipColor');
+        // if (savedCurrentColor !== null) {
+        //     this.currentShipColor = parseInt(savedCurrentColor);
+        // }
         
         // Create shop menu element
         this.shopMenuElement = document.createElement('div');
@@ -798,42 +767,6 @@ class Game {
         this.shopMenuElement.style.overflowY = 'auto';
         this.shopMenuElement.style.minWidth = '400px';
         document.body.appendChild(this.shopMenuElement);
-
-        // Create color menu element
-        this.colorMenuElement = document.createElement('div');
-        this.colorMenuElement.style.position = 'fixed';
-        this.colorMenuElement.style.top = '50%';
-        this.colorMenuElement.style.left = '50%';
-        this.colorMenuElement.style.transform = 'translate(-50%, -50%)';
-        this.colorMenuElement.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
-        this.colorMenuElement.style.padding = '20px';
-        this.colorMenuElement.style.borderRadius = '10px';
-        this.colorMenuElement.style.color = 'white';
-        this.colorMenuElement.style.fontFamily = 'Arial';
-        this.colorMenuElement.style.display = 'none';
-        this.colorMenuElement.style.zIndex = '9999';
-        this.colorMenuElement.style.maxHeight = '80vh';
-        this.colorMenuElement.style.overflowY = 'auto';
-        this.colorMenuElement.style.minWidth = '400px';
-        document.body.appendChild(this.colorMenuElement);
-
-        // Create trail menu element
-        this.trailMenuElement = document.createElement('div');
-        this.trailMenuElement.style.position = 'fixed';
-        this.trailMenuElement.style.top = '50%';
-        this.trailMenuElement.style.left = '50%';
-        this.trailMenuElement.style.transform = 'translate(-50%, -50%)';
-        this.trailMenuElement.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
-        this.trailMenuElement.style.padding = '20px';
-        this.trailMenuElement.style.borderRadius = '10px';
-        this.trailMenuElement.style.color = 'white';
-        this.trailMenuElement.style.fontFamily = 'Arial';
-        this.trailMenuElement.style.display = 'none';
-        this.trailMenuElement.style.zIndex = '9999';
-        this.trailMenuElement.style.maxHeight = '80vh';
-        this.trailMenuElement.style.overflowY = 'auto';
-        this.trailMenuElement.style.minWidth = '400px';
-        document.body.appendChild(this.trailMenuElement);
 
         // Add event listeners for U key
         window.addEventListener('keydown', (e) => {
@@ -1469,9 +1402,9 @@ class Game {
                     this.updateShopMenu();
                     this.showNotification(`Purchased ${selectedColor.name} ship color!`);
                     
-                    // Save to localStorage
-                    localStorage.setItem('shipColors', JSON.stringify(this.shipColors));
-                    localStorage.setItem('currentShipColor', this.currentShipColor);
+                    // Remove localStorage saving
+                    // localStorage.setItem('shipColors', JSON.stringify(this.shipColors));
+                    // localStorage.setItem('currentShipColor', this.currentShipColor);
                 }
             }
         } else {
