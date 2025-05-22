@@ -549,10 +549,12 @@ class Game {
                 case 'ArrowUp':
                     e.preventDefault();
                     if (this.menuState.currentMenu === 'main') {
-                    this.menuState.selectedIndex = Math.max(0, this.menuState.selectedIndex - 1);
+                        this.menuState.selectedIndex = Math.max(0, this.menuState.selectedIndex - 1);
                     } else if (this.menuState.currentMenu === 'quest') {
                         this.menuState.selectedIndex = Math.max(0, this.menuState.selectedIndex - 1);
                     } else if (this.menuState.currentMenu === 'shop') {
+                        this.menuState.selectedIndex = Math.max(0, this.menuState.selectedIndex - 1);
+                    } else if (this.menuState.currentMenu === 'colors') {
                         this.menuState.selectedIndex = Math.max(0, this.menuState.selectedIndex - 1);
                     }
                     this.updateCurrentMenu();
@@ -566,6 +568,8 @@ class Game {
                     } else if (this.menuState.currentMenu === 'quest') {
                         this.menuState.selectedIndex = Math.min(this.menuState.quests.length, this.menuState.selectedIndex + 1);
                     } else if (this.menuState.currentMenu === 'shop') {
+                        this.menuState.selectedIndex = Math.min(2, this.menuState.selectedIndex + 1); // 2 options + back button
+                    } else if (this.menuState.currentMenu === 'colors') {
                         this.menuState.selectedIndex = Math.min(this.shipColors.length, this.menuState.selectedIndex + 1);
                     }
                     this.updateCurrentMenu();
@@ -1269,7 +1273,7 @@ class Game {
         // Only show ship customization at outposts, not seaposts
         const isOutpost = this.outposts.includes(this.currentOutpost);
         const options = isOutpost ? 
-            ['Merchant Quests', 'Ship Customization', 'Close'] : 
+            ['Merchant Quests', 'Ship Cosmetics', 'Close'] : 
             ['Merchant Quests', 'Close'];
 
         this.menuElement.innerHTML = `
@@ -1295,57 +1299,29 @@ class Game {
         if (!this.currentOutpost) return;
 
         let html = `
-            <h2 style="margin-top: 0; color: #ffd700;">Ship Customization</h2>
+            <h2 style="margin-top: 0; color: #ffd700;">Ship Cosmetics</h2>
             <div style="margin-bottom: 20px;">
-        `;
-
-        this.shipColors.forEach((color, index) => {
-            const isOwned = color.owned;
-            const isEquipped = index === this.currentShipColor;
-            const canAfford = this.gold >= color.price;
-            const isSelected = index === this.menuState.selectedIndex;
-            
-            html += `
                 <div style="
-                    border: 1px solid #444;
-                    padding: 10px;
-                    margin-bottom: 10px;
+                    padding: 10px 20px;
+                    margin: 4px 2px;
                     border-radius: 5px;
-                    background-color: ${isSelected ? 'rgba(76, 175, 80, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                ">
-                    <div style="display: flex; align-items: center;">
-                        <div style="
-                            width: 30px;
-                            height: 30px;
-                            background-color: hsl(${color.hue}, 100%, 50%);
-                            border-radius: 5px;
-                            margin-right: 10px;
-                            box-shadow: 0 0 10px hsl(${color.hue}, 100%, 50%);
-                        "></div>
-                        <div>
-                            <h4 style="margin: 0 0 5px 0; color: #ffd700;">${color.name}</h4>
-                            <p style="margin: 0; color: ${isOwned ? '#4CAF50' : canAfford ? '#4CAF50' : '#ff4444'}">
-                                ${isOwned ? 'Owned' : `${color.price} gold`}
-                            </p>
-                        </div>
-                    </div>
-                    <div style="color: ${isEquipped ? '#4CAF50' : '#888'}">
-                        ${isEquipped ? 'Equipped' : isOwned ? 'Press Enter to equip' : canAfford ? 'Press Enter to purchase' : 'Cannot afford'}
-                    </div>
-                </div>
-            `;
-        });
-
-        html += `
+                    background-color: ${this.menuState.selectedIndex === 0 ? '#4CAF50' : 'transparent'};
+                    cursor: pointer;
+                ">Ship Colors</div>
+                <div style="
+                    padding: 10px 20px;
+                    margin: 4px 2px;
+                    border-radius: 5px;
+                    background-color: ${this.menuState.selectedIndex === 1 ? '#4CAF50' : 'transparent'};
+                    cursor: pointer;
+                    opacity: 0.5;
+                ">Coming Soon</div>
             </div>
             <div style="
                 padding: 10px 20px;
                 margin: 4px 2px;
                 border-radius: 5px;
-                background-color: ${this.menuState.selectedIndex === this.shipColors.length ? '#4CAF50' : 'transparent'};
+                background-color: ${this.menuState.selectedIndex === 2 ? '#4CAF50' : 'transparent'};
                 cursor: pointer;
             ">Back to Menu</div>
             <div style="color: #888; font-size: 12px;">
@@ -1367,7 +1343,7 @@ class Game {
                 this.questMenuElement.style.display = 'block';
                 this.updateQuestMenu();
             } else if (isOutpost && this.menuState.selectedIndex === 1) {
-                // Ship Customization (only at outposts)
+                // Ship Cosmetics
                 this.menuState.currentMenu = 'shop';
                 this.menuState.selectedIndex = 0;
                 this.menuElement.style.display = 'none';
@@ -1378,20 +1354,34 @@ class Game {
                 this.closeMenu();
             }
         } else if (this.menuState.currentMenu === 'shop') {
-            if (this.menuState.selectedIndex === this.shipColors.length) {
+            if (this.menuState.selectedIndex === 0) {
+                // Ship Colors
+                this.menuState.currentMenu = 'colors';
+                this.menuState.selectedIndex = 0;
+                this.updateColorsMenu();
+            } else if (this.menuState.selectedIndex === 1) {
+                // Coming Soon
+                this.showNotification('This feature is coming soon!');
+            } else if (this.menuState.selectedIndex === 2) {
                 // Back to Menu
                 this.menuState.currentMenu = 'main';
                 this.menuState.selectedIndex = 0;
                 this.shopMenuElement.style.display = 'none';
                 this.menuElement.style.display = 'block';
                 this.updateMainMenu();
+            }
+        } else if (this.menuState.currentMenu === 'colors') {
+            if (this.menuState.selectedIndex === this.shipColors.length) {
+                // Back to Shop Menu
+                this.menuState.currentMenu = 'shop';
+                this.menuState.selectedIndex = 0;
+                this.updateShopMenu();
             } else {
                 const selectedColor = this.shipColors[this.menuState.selectedIndex];
                 if (selectedColor.owned) {
                     // If already owned, just equip it
                     this.currentShipColor = this.menuState.selectedIndex;
-                    localStorage.setItem('currentShipColor', this.currentShipColor);
-                    this.updateShopMenu();
+                    this.updateColorsMenu();
                     this.showNotification(`Equipped ${selectedColor.name} ship color!`);
                 } else if (selectedColor.price <= this.gold) {
                     // Purchase new color
@@ -1399,12 +1389,8 @@ class Game {
                     selectedColor.owned = true;
                     this.currentShipColor = this.menuState.selectedIndex;
                     this.updateGoldDisplay();
-                    this.updateShopMenu();
+                    this.updateColorsMenu();
                     this.showNotification(`Purchased ${selectedColor.name} ship color!`);
-                    
-                    // Remove localStorage saving
-                    // localStorage.setItem('shipColors', JSON.stringify(this.shipColors));
-                    // localStorage.setItem('currentShipColor', this.currentShipColor);
                 }
             }
         } else {
@@ -1563,6 +1549,8 @@ class Game {
             this.updateQuestMenu();
         } else if (this.menuState.currentMenu === 'shop') {
             this.updateShopMenu();
+        } else if (this.menuState.currentMenu === 'colors') {
+            this.updateColorsMenu();
         }
     }
 
@@ -2437,6 +2425,79 @@ class Game {
         this.player.y = (gridY + 0.5) * this.cellHeight;
         this.player.speed = 0;
         this.showNotification('Teleported to Ancient Spire Outpost!');
+    }
+
+    updateColorsMenu() {
+        if (!this.currentOutpost) return;
+
+        let html = `
+            <h2 style="margin-top: 0; color: #ffd700;">Ship Colors</h2>
+            <div style="margin-bottom: 20px;">
+        `;
+
+        this.shipColors.forEach((color, index) => {
+            const isOwned = color.owned;
+            const isEquipped = index === this.currentShipColor;
+            const canAfford = this.gold >= color.price;
+            const isSelected = index === this.menuState.selectedIndex;
+            
+            // Calculate HSL values based on color name
+            let saturation = '100%';
+            let lightness = '50%';
+            if (color.name === "Default") {
+                saturation = '70%';
+                lightness = '25%';  // Reduced from 40% to 25% for a darker brown
+            }
+            
+            html += `
+                <div style="
+                    border: 1px solid #444;
+                    padding: 10px;
+                    margin-bottom: 10px;
+                    border-radius: 5px;
+                    background-color: ${isSelected ? 'rgba(76, 175, 80, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                ">
+                    <div style="display: flex; align-items: center;">
+                        <div style="
+                            width: 30px;
+                            height: 30px;
+                            background-color: hsl(${color.hue}, ${saturation}, ${lightness});
+                            border-radius: 5px;
+                            margin-right: 10px;
+                            box-shadow: 0 0 10px hsl(${color.hue}, ${saturation}, ${lightness});
+                        "></div>
+                        <div>
+                            <h4 style="margin: 0 0 5px 0; color: #ffd700;">${color.name}</h4>
+                            <p style="margin: 0; color: ${isOwned ? '#4CAF50' : canAfford ? '#4CAF50' : '#ff4444'}">
+                                ${isOwned ? 'Owned' : `${color.price} gold`}
+                            </p>
+                        </div>
+                    </div>
+                    <div style="color: ${isEquipped ? '#4CAF50' : '#888'}">
+                        ${isEquipped ? 'Equipped' : isOwned ? 'Press Enter to equip' : canAfford ? 'Press Enter to purchase' : 'Cannot afford'}
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+            </div>
+            <div style="
+                padding: 10px 20px;
+                margin: 4px 2px;
+                border-radius: 5px;
+                background-color: ${this.menuState.selectedIndex === this.shipColors.length ? '#4CAF50' : 'transparent'};
+                cursor: pointer;
+            ">Back to Shop</div>
+            <div style="color: #888; font-size: 12px;">
+                Use ↑↓ arrows to navigate, Enter to select, Esc to close
+            </div>
+        `;
+
+        this.shopMenuElement.innerHTML = html;
     }
 }
 
