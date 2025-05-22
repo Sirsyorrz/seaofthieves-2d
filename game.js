@@ -92,10 +92,37 @@ class Game {
         
         this.boatImage = new Image();
         this.boatImage.src = './assets/boat.png';
+        this.boatImage.onload = () => {
+            // Initialize boat images with default
+            this.boatImages = {
+                'Default': this.boatImage
+            };
+            
+            // Load all other boat images
+            this.shipColors.forEach(color => {
+                if (color.name === 'Default') return; // Skip default as it's already loaded
+                
+                const img = new Image();
+                img.src = color.image;
+                img.onload = () => {
+                    this.boatImages[color.name] = img;
+                };
+                img.onerror = (e) => {
+                    console.error(`Failed to load boat image: ${color.image}`, e);
+                    this.showNotification(`Failed to load ${color.name} boat image. Using default.`);
+                    // Fallback to default boat if image fails to load
+                    color.image = './assets/boat.png';
+                    this.boatImages[color.name] = this.boatImage;
+                };
+            });
+            
+            // Start game loop only after default boat is loaded
+            this.gameLoop();
+        };
         this.boatImage.onerror = (e) => {
-            console.error('Failed to load boat image:', e);
+            console.error('Failed to load default boat image:', e);
             console.log('Attempted to load from:', this.boatImage.src);
-            this.showNotification('Failed to load boat image. Please refresh the page.');
+            this.showNotification('Failed to load default boat image. Please refresh the page.');
         };
         
         // Movement keys
@@ -669,13 +696,13 @@ class Game {
             normalSpeed: 0.005, // Reduced from 0.01 to 0.005
             isReeling: false,
             fishTypes: [
-                { name: "Splashtail", rarity: "common", value: 50, struggleChance: 0.2 },
-                { name: "Pondie", rarity: "common", value: 40, struggleChance: 0.2 },
-                { name: "Islehopper", rarity: "uncommon", value: 75, struggleChance: 0.3 },
-                { name: "Ancientscale", rarity: "rare", value: 150, struggleChance: 0.4 },
-                { name: "Plentifin", rarity: "uncommon", value: 80, struggleChance: 0.3 },
-                { name: "Wildsplash", rarity: "rare", value: 120, struggleChance: 0.4 },
-                { name: "Devilfish", rarity: "legendary", value: 300, struggleChance: 0.5 }
+                { name: "Splashtail", rarity: "common", value: 75, struggleChance: 0.2 },
+                { name: "Pondie", rarity: "common", value: 100, struggleChance: 0.2 },
+                { name: "Islehopper", rarity: "uncommon", value: 165, struggleChance: 0.3 },
+                { name: "Ancientscale", rarity: "rare", value: 650, struggleChance: 0.4 },
+                { name: "Plentifin", rarity: "uncommon", value: 200, struggleChance: 0.3 },
+                { name: "Wildsplash", rarity: "rare", value: 750, struggleChance: 0.4 },
+                { name: "Devilfish", rarity: "legendary", value: 1000, struggleChance: 0.5 }
             ],
             currentFish: null,
             catchProgress: 0,
@@ -726,17 +753,21 @@ class Game {
 
         // Add ship customization properties
         this.shipColors = [
-            { name: "Default", hue: 0, price: 0, owned: true },
-            { name: "Red", hue: 360, price: 2500, owned: false },
-            { name: "Green", hue: 120, price: 3750, owned: false },
-            { name: "Blue", hue: 240, price: 5000, owned: false },
-            { name: "Cyan", hue: 180, price: 7500, owned: false },
-            { name: "Pink", hue: 300, price: 12500, owned: false },
-            { name: "Purple", hue: 280, price: 25000, owned: false },
-            { name: "Gold", hue: 45, price: 50000, owned: false }
+            { name: "Default", image: './assets/boat.png', price: 0, owned: true },
+            { name: "Red", image: './assets/boat_red.png', price: 2500, owned: false },
+            { name: "Green", image: './assets/boat_green.png', price: 3750, owned: false },
+            { name: "Blue", image: './assets/boat_blue.png', price: 5000, owned: false },
+            { name: "Cyan", image: './assets/boat_cyan.png', price: 7500, owned: false },
+            { name: "Pink", image: './assets/boat_pink.png', price: 12500, owned: false },
+            { name: "Purple", image: './assets/boat_purple.png', price: 25000, owned: false },
+            { name: "Gold", image: './assets/boat_gold.png', price: 50000, owned: false }
         ];
         
         this.currentShipColor = 0; // Index of current color
+        this.boatImages = {}; // Initialize empty object
+
+        // Initialize boat image loading
+        this.initializeBoatImages();
 
         // Remove localStorage loading for colors
         // const savedColors = localStorage.getItem('shipColors');
@@ -808,6 +839,47 @@ class Game {
             <div><span style="color:#fff;">Arrows/Enter/Esc</span>: Menu Nav</div>
         `;
         document.body.appendChild(this.shortcutsOverlay);
+    }
+
+    initializeBoatImages() {
+        // Initialize boat images object
+        this.boatImages = {};
+        
+        // Load default boat image first
+        this.boatImage = new Image();
+        this.boatImage.src = './assets/boat.png';
+        this.boatImage.onload = () => {
+            // Set default boat image
+            this.boatImages['Default'] = this.boatImage;
+            
+            // Load all other boat images
+            if (this.shipColors) {
+                this.shipColors.forEach(color => {
+                    if (color.name === 'Default') return; // Skip default as it's already loaded
+                    
+                    const img = new Image();
+                    img.src = color.image;
+                    img.onload = () => {
+                        this.boatImages[color.name] = img;
+                    };
+                    img.onerror = (e) => {
+                        console.error(`Failed to load boat image: ${color.image}`, e);
+                        this.showNotification(`Failed to load ${color.name} boat image. Using default.`);
+                        // Fallback to default boat if image fails to load
+                        color.image = './assets/boat.png';
+                        this.boatImages[color.name] = this.boatImage;
+                    };
+                });
+            }
+            
+            // Start game loop only after default boat is loaded
+            this.gameLoop();
+        };
+        this.boatImage.onerror = (e) => {
+            console.error('Failed to load default boat image:', e);
+            console.log('Attempted to load from:', this.boatImage.src);
+            this.showNotification('Failed to load default boat image. Please refresh the page.');
+        };
     }
 
     updateGoldDisplay() {
@@ -1262,7 +1334,7 @@ class Game {
             commodities: questCommodities,
             reward: questCommodities.reduce((sum, item) => sum + item.totalPrice, 0) * 1.5, // 50% profit
             status: 'available',
-            timeLimit: 60, // 1 minute in seconds
+            timeLimit: 30, // 1 minute in seconds
             startTime: null // Will be set when quest is accepted
         };
     }
@@ -2091,25 +2163,27 @@ class Game {
         this.ctx.translate(this.player.x, this.player.y);
         this.ctx.rotate(this.player.rotation);
         
-        // Apply color filter with safety checks and increased saturation
+        // Get the current boat image with fallback to default
+        let boatImage = this.boatImage; // Default fallback
+        
         if (this.shipColors && this.currentShipColor >= 0 && this.currentShipColor < this.shipColors.length) {
-            const color = this.shipColors[this.currentShipColor];
-            if (color && color.hue !== undefined && color.hue !== 0) {
-                // Increased saturation for more vibrant colors
-                this.ctx.filter = `hue-rotate(${color.hue}deg) saturate(2.0)`;
+            const currentColor = this.shipColors[this.currentShipColor];
+            if (currentColor && this.boatImages && this.boatImages[currentColor.name] && this.boatImages[currentColor.name].complete) {
+                boatImage = this.boatImages[currentColor.name];
             }
         }
         
-        this.ctx.drawImage(
-            this.boatImage,
-            -this.player.width / 2,
-            -this.player.height / 2,
-            this.player.width,
-            this.player.height
-        );
+        // Only draw if we have a valid image
+        if (boatImage && boatImage.complete) {
+            this.ctx.drawImage(
+                boatImage,
+                -this.player.width / 2,
+                -this.player.height / 2,
+                this.player.width,
+                this.player.height
+            );
+        }
         
-        // Reset filter
-        this.ctx.filter = 'none';
         this.ctx.restore();
         
         // Draw island names using mapped positions
@@ -2441,14 +2515,6 @@ class Game {
             const canAfford = this.gold >= color.price;
             const isSelected = index === this.menuState.selectedIndex;
             
-            // Calculate HSL values based on color name
-            let saturation = '100%';
-            let lightness = '50%';
-            if (color.name === "Default") {
-                saturation = '70%';
-                lightness = '25%';  // Reduced from 40% to 25% for a darker brown
-            }
-            
             html += `
                 <div style="
                     border: 1px solid #444;
@@ -2462,13 +2528,15 @@ class Game {
                 ">
                     <div style="display: flex; align-items: center;">
                         <div style="
-                            width: 30px;
-                            height: 30px;
-                            background-color: hsl(${color.hue}, ${saturation}, ${lightness});
-                            border-radius: 5px;
+                            width: 60px;
+                            height: 60px;
                             margin-right: 10px;
-                            box-shadow: 0 0 10px hsl(${color.hue}, ${saturation}, ${lightness});
-                        "></div>
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        ">
+                            <img src="${color.image}" style="max-width: 100%; max-height: 100%;" />
+                        </div>
                         <div>
                             <h4 style="margin: 0 0 5px 0; color: #ffd700;">${color.name}</h4>
                             <p style="margin: 0; color: ${isOwned ? '#4CAF50' : canAfford ? '#4CAF50' : '#ff4444'}">
