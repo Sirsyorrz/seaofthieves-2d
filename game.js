@@ -396,6 +396,7 @@ class Game {
         // Add cargo system
         this.cargo = {
             items: [],
+            fish: [], // New array to store caught fish
             maxWeight: 10,
             currentWeight: 0
         };
@@ -630,6 +631,134 @@ class Game {
         
         // Start game loop
         this.gameLoop();
+
+        // Add escape menu properties
+        this.escapeMenuElement = document.createElement('div');
+        this.escapeMenuElement.style.position = 'fixed';
+        this.escapeMenuElement.style.top = '50%';
+        this.escapeMenuElement.style.left = '50%';
+        this.escapeMenuElement.style.transform = 'translate(-50%, -50%)';
+        this.escapeMenuElement.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+        this.escapeMenuElement.style.padding = '20px';
+        this.escapeMenuElement.style.borderRadius = '10px';
+        this.escapeMenuElement.style.color = 'white';
+        this.escapeMenuElement.style.fontFamily = 'Arial';
+        this.escapeMenuElement.style.display = 'none';
+        this.escapeMenuElement.style.zIndex = '9999';
+        this.escapeMenuElement.style.minWidth = '300px';
+        document.body.appendChild(this.escapeMenuElement);
+
+        // Add escape menu state
+        this.escapeMenuState = {
+            isOpen: false,
+            selectedIndex: 0
+        };
+
+        // Add event listener for ESC key
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (this.showMenu) {
+                    // If merchant menu is open, close it
+                    this.closeMenu();
+                } else {
+                    // Toggle escape menu
+                    this.toggleEscapeMenu();
+                }
+                e.preventDefault();
+            }
+        });
+
+        // Add keyboard navigation for escape menu
+        window.addEventListener('keydown', (e) => {
+            if (!this.escapeMenuState.isOpen) return;
+
+            switch (e.key) {
+                case 'ArrowUp':
+                    e.preventDefault();
+                    this.escapeMenuState.selectedIndex = Math.max(0, this.escapeMenuState.selectedIndex - 1);
+                    this.updateEscapeMenu();
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    this.escapeMenuState.selectedIndex = Math.min(1, this.escapeMenuState.selectedIndex + 1);
+                    this.updateEscapeMenu();
+                    break;
+                case 'Enter':
+                    e.preventDefault();
+                    this.handleEscapeMenuSelection();
+                    break;
+            }
+        });
+
+        // Add fishing game properties
+        this.fishingGame = {
+            isActive: false,
+            progress: 0,
+            targetZone: 0,
+            zoneWidth: 0.3,
+            speed: 0.005, // Reduced from 0.01 to 0.005
+            direction: 1,
+            struggleTimer: 0,
+            struggleInterval: 1000,
+            struggleChance: 0.3,
+            struggleSpeed: 0.015, // Reduced from 0.03 to 0.015
+            normalSpeed: 0.005, // Reduced from 0.01 to 0.005
+            isReeling: false,
+            fishTypes: [
+                { name: "Splashtail", rarity: "common", value: 50, struggleChance: 0.2 },
+                { name: "Pondie", rarity: "common", value: 40, struggleChance: 0.2 },
+                { name: "Islehopper", rarity: "uncommon", value: 75, struggleChance: 0.3 },
+                { name: "Ancientscale", rarity: "rare", value: 150, struggleChance: 0.4 },
+                { name: "Plentifin", rarity: "uncommon", value: 80, struggleChance: 0.3 },
+                { name: "Wildsplash", rarity: "rare", value: 120, struggleChance: 0.4 },
+                { name: "Devilfish", rarity: "legendary", value: 300, struggleChance: 0.5 }
+            ],
+            currentFish: null,
+            catchProgress: 0,
+            maxCatchProgress: 100,
+            catchSpeed: 1.0, // Increased from 0.5 to 1.0
+            escapeSpeed: 0.2 // Reduced from 0.3 to 0.2
+        };
+
+        // Create fishing game UI
+        this.fishingGameElement = document.createElement('div');
+        this.fishingGameElement.style.position = 'fixed';
+        this.fishingGameElement.style.top = '50%';
+        this.fishingGameElement.style.left = '50%';
+        this.fishingGameElement.style.transform = 'translate(-50%, -50%)';
+        this.fishingGameElement.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+        this.fishingGameElement.style.padding = '20px';
+        this.fishingGameElement.style.borderRadius = '10px';
+        this.fishingGameElement.style.color = 'white';
+        this.fishingGameElement.style.fontFamily = 'Arial';
+        this.fishingGameElement.style.display = 'none';
+        this.fishingGameElement.style.zIndex = '9999';
+        this.fishingGameElement.style.minWidth = '400px';
+        document.body.appendChild(this.fishingGameElement);
+
+        // Add event listeners for F key
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'f') {
+                if (!this.fishingGame.isActive && !this.showMenu && !this.escapeMenuState.isOpen) {
+                    this.startFishingGame();
+                } else if (this.fishingGame.isActive) {
+                    this.fishingGame.isReeling = true;
+                }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key.toLowerCase() === 'f' && this.fishingGame.isActive) {
+                this.fishingGame.isReeling = false;
+            }
+        });
+
+        // Add event listener for seapost interaction
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'e' && this.nearSeapost) {
+                this.sellFish();
+            }
+        });
     }
 
     updateGoldDisplay() {
@@ -1439,7 +1568,7 @@ class Game {
     }
 
     updateCargoDisplay() {
-        if (this.cargo.items.length > 0) {
+        if (this.cargo.items.length > 0 || this.cargo.fish.length > 0) {
             this.cargoElement.style.display = 'block';
             if (this.cargoDropButton) {
                 this.cargoDropButton.style.display = 'block';
@@ -1448,15 +1577,35 @@ class Game {
             const buttonHeight = this.cargoDropButton ? this.cargoDropButton.offsetHeight : 0;
             const buttonTop = this.cargoDropWrapper ? parseInt(this.cargoDropWrapper.style.top) : 80;
             this.cargoElement.style.top = `${buttonTop + buttonHeight + 10}px`; // 10px gap
-            this.cargoElement.innerHTML = `
+            
+            let html = `
                 <h3 style="margin: 0 0 5px 0;">Cargo Hold</h3>
                 <p style="margin: 0;">Weight: ${this.cargo.currentWeight}/${this.cargo.maxWeight}</p>
-                <ul style="margin: 5px 0; padding-left: 20px;">
-                    ${this.cargo.items.map(item => `
-                        <li style="margin: 2px 0;">${item.quantity}x ${item.name}</li>
-                    `).join('')}
-                </ul>
             `;
+
+            if (this.cargo.items.length > 0) {
+                html += `
+                    <h4 style="margin: 10px 0 5px 0;">Items</h4>
+                    <ul style="margin: 5px 0; padding-left: 20px;">
+                        ${this.cargo.items.map(item => `
+                            <li style="margin: 2px 0;">${item.quantity}x ${item.name}</li>
+                        `).join('')}
+                    </ul>
+                `;
+            }
+
+            if (this.cargo.fish.length > 0) {
+                html += `
+                    <h4 style="margin: 10px 0 5px 0;">Fish</h4>
+                    <ul style="margin: 5px 0; padding-left: 20px;">
+                        ${this.cargo.fish.map(fish => `
+                            <li style="margin: 2px 0;">${fish.name} (${fish.rarity}) - ${fish.value} gold</li>
+                        `).join('')}
+                    </ul>
+                `;
+            }
+
+            this.cargoElement.innerHTML = html;
         } else {
             this.cargoElement.style.display = 'none';
             if (this.cargoDropButton) {
@@ -1552,98 +1701,105 @@ class Game {
         // Update grid position display
         this.gridInfo.textContent = `Grid: ${this.getGridPosition(this.player.x, this.player.y)}`;
 
-        // Check if player is near an outpost using mapped positions
+        // Check if player is near an outpost or seapost using mapped positions
         this.nearOutpost = false;
         this.currentOutpost = null;
+        this.nearSeapost = false;
+        this.currentSeapost = null;
         
         if (this.mappedIslands) {
             for (const island of this.mappedIslands) {
-                if (island.isOutpost) {
-                    const distance = Math.sqrt(
-                        Math.pow(this.player.x - island.x, 2) + 
-                        Math.pow(this.player.y - island.y, 2)
-                    );
-                    
-                    if (distance < 300) {
+                const distance = Math.sqrt(
+                    Math.pow(this.player.x - island.x, 2) + 
+                    Math.pow(this.player.y - island.y, 2)
+                );
+                
+                if (distance < 300) {
+                    if (island.type === 'outpost') {
                         this.nearOutpost = true;
                         this.currentOutpost = island.name;
+                    } else if (island.type === 'seapost') {
+                        this.nearSeapost = true;
+                        this.currentSeapost = island.name;
+                    }
 
-                        // Check for auto-delivery of quests
-                        const deliverableQuests = this.merchantQuests.activeQuests.filter(q => 
-                            q.status === 'active' && q.destinationOutpost === island.name
-                        );
+                    // Check for auto-delivery of quests
+                    const deliverableQuests = this.merchantQuests.activeQuests.filter(q => 
+                        q.status === 'active' && q.destinationOutpost === island.name
+                    );
 
-                        // Create a cargo tracking system
-                        const cargoTracker = new Map();
-                        this.cargo.items.forEach(item => {
-                            cargoTracker.set(item.name, {
-                                quantity: item.quantity,
-                                weight: item.weight
-                            });
+                    // Create a cargo tracking system
+                    const cargoTracker = new Map();
+                    this.cargo.items.forEach(item => {
+                        cargoTracker.set(item.name, {
+                            quantity: item.quantity,
+                            weight: item.weight
+                        });
+                    });
+
+                    // Process each quest individually
+                    for (const quest of deliverableQuests) {
+                        // Check if we have all required items for this specific quest
+                        const hasAllItems = quest.commodities.every(questItem => {
+                            const cargoItem = cargoTracker.get(questItem.name);
+                            return cargoItem && cargoItem.quantity >= questItem.quantity;
                         });
 
-                        // Process each quest individually
-                        for (const quest of deliverableQuests) {
-                            // Check if we have all required items for this specific quest
-                            const hasAllItems = quest.commodities.every(questItem => {
+                        if (hasAllItems) {
+                            // Remove only the items needed for this specific quest
+                            quest.commodities.forEach(questItem => {
                                 const cargoItem = cargoTracker.get(questItem.name);
-                                return cargoItem && cargoItem.quantity >= questItem.quantity;
+                                if (cargoItem) {
+                                    cargoItem.quantity -= questItem.quantity;
+                                }
                             });
 
-                            if (hasAllItems) {
-                                // Remove only the items needed for this specific quest
-                                quest.commodities.forEach(questItem => {
-                                    const cargoItem = cargoTracker.get(questItem.name);
-                                    if (cargoItem) {
-                                        cargoItem.quantity -= questItem.quantity;
-                                    }
-                                });
+                            // Update actual cargo items
+                            this.cargo.items = Array.from(cargoTracker.entries())
+                                .filter(([_, item]) => item.quantity > 0)
+                                .map(([name, item]) => ({
+                                    name,
+                                    quantity: item.quantity,
+                                    weight: item.weight
+                                }));
 
-                                // Update actual cargo items
-                                this.cargo.items = Array.from(cargoTracker.entries())
-                                    .filter(([_, item]) => item.quantity > 0)
-                                    .map(([name, item]) => ({
-                                        name,
-                                        quantity: item.quantity,
-                                        weight: item.weight
-                                    }));
+                            // Update cargo weight
+                            this.cargo.currentWeight = this.cargo.items.reduce((sum, item) => 
+                                sum + (item.weight * item.quantity), 0);
 
-                                // Update cargo weight
-                                this.cargo.currentWeight = this.cargo.items.reduce((sum, item) => 
-                                    sum + (item.weight * item.quantity), 0);
+                            // Add reward to gold
+                            this.gold += quest.reward;
+                            this.updateGoldDisplay();
 
-                                // Add reward to gold
-                                this.gold += quest.reward;
-                                this.updateGoldDisplay();
+                            // Move quest to completed
+                            this.merchantQuests.activeQuests = this.merchantQuests.activeQuests.filter(q => q.id !== quest.id);
+                            this.merchantQuests.completedQuests.push({
+                                ...quest,
+                                status: 'completed'
+                            });
 
-                                // Move quest to completed
-                                this.merchantQuests.activeQuests = this.merchantQuests.activeQuests.filter(q => q.id !== quest.id);
-                                this.merchantQuests.completedQuests.push({
-                                    ...quest,
-                                    status: 'completed'
-                                });
-
-                                // Generate a new quest for the outpost if needed
-                                if (this.merchantQuests.outpostQuests[quest.startOutpost].length < 3) {
-                                    const newQuest = this.generateMerchantQuest(quest.startOutpost);
-                                    this.merchantQuests.outpostQuests[quest.startOutpost].push(newQuest);
-                                }
-
-                                // Show reward message
-                                this.showNotification(`Quest completed! You received ${quest.reward} gold!`);
+                            // Generate a new quest for the outpost if needed
+                            if (this.merchantQuests.outpostQuests[quest.startOutpost].length < 3) {
+                                const newQuest = this.generateMerchantQuest(quest.startOutpost);
+                                this.merchantQuests.outpostQuests[quest.startOutpost].push(newQuest);
                             }
-                        }
 
-                        break;
+                            // Show reward message
+                            this.showNotification(`Quest completed! You received ${quest.reward} gold!`);
+                        }
                     }
+
+                    break;
                 }
             }
         }
         
         // Update tooltip visibility
-        this.tooltipElement.style.display = this.nearOutpost ? 'block' : 'none';
+        this.tooltipElement.style.display = (this.nearOutpost || this.nearSeapost) ? 'block' : 'none';
         if (this.nearOutpost) {
             this.tooltipElement.textContent = `Press E to interact with ${this.currentOutpost}`;
+        } else if (this.nearSeapost) {
+            this.tooltipElement.textContent = `Press E to sell fish at ${this.currentSeapost}`;
         }
 
         // Update quest timers and displays
@@ -1696,6 +1852,11 @@ class Game {
                 this.updateCargoDisplay();
                 this.showNotification('Cargo dropped into the water!');
             }
+        }
+
+        // Update fishing game if active
+        if (this.fishingGame && this.fishingGame.isActive) {
+            this.updateFishingGame();
         }
     }
     
@@ -1865,6 +2026,257 @@ class Game {
         setTimeout(() => {
             this.notificationElement.style.display = 'none';
         }, duration);
+    }
+
+    toggleEscapeMenu() {
+        this.escapeMenuState.isOpen = !this.escapeMenuState.isOpen;
+        this.escapeMenuElement.style.display = this.escapeMenuState.isOpen ? 'block' : 'none';
+        this.escapeMenuState.selectedIndex = 0;
+        this.updateEscapeMenu();
+    }
+
+    updateEscapeMenu() {
+        const options = ['Unstuck', 'Close'];
+        this.escapeMenuElement.innerHTML = `
+            <h2 style="margin-top: 0; color: #ffd700;">Escape Menu</h2>
+            <div style="margin-bottom: 20px;">
+                ${options.map((option, index) => `
+                    <div style="
+                        padding: 10px 20px;
+                        margin: 4px 2px;
+                        border-radius: 5px;
+                        background-color: ${index === this.escapeMenuState.selectedIndex ? '#4CAF50' : 'transparent'};
+                        cursor: pointer;
+                    ">${option}</div>
+                `).join('')}
+            </div>
+            <div style="color: #888; font-size: 12px;">
+                Use ↑↓ arrows to navigate, Enter to select, Esc to close
+            </div>
+        `;
+    }
+
+    handleEscapeMenuSelection() {
+        switch (this.escapeMenuState.selectedIndex) {
+            case 0: // Unstuck
+                this.unstuckPlayer();
+                this.toggleEscapeMenu();
+                break;
+            case 1: // Close
+                this.toggleEscapeMenu();
+                break;
+        }
+    }
+
+    unstuckPlayer() {
+        // Teleport player to Ancient Spire Outpost (P17)
+        const ancientSpireGrid = "P17";
+        const gridX = ancientSpireGrid.charCodeAt(0) - 65;
+        const gridY = parseInt(ancientSpireGrid.substring(1)) - 1;
+        
+        this.player.x = (gridX + 0.5) * this.cellWidth;
+        this.player.y = (gridY + 0.5) * this.cellHeight;
+        this.player.speed = 0; // Stop the boat
+        
+        this.showNotification('Teleported to Ancient Spire Outpost!');
+    }
+
+    startFishingGame() {
+        // Only allow fishing when not moving
+        if (this.player.speed > 0.1) {
+            this.showNotification('You need to stop moving to fish!');
+            return;
+        }
+
+        this.fishingGame.isActive = true;
+        this.fishingGame.progress = 0;
+        this.fishingGame.direction = 1;
+        this.fishingGame.targetZone = Math.random() * (1 - this.fishingGame.zoneWidth);
+        this.fishingGame.struggleTimer = 0;
+        this.fishingGame.speed = this.fishingGame.normalSpeed;
+        this.fishingGame.catchProgress = 0;
+        this.fishingGame.currentFish = this.getRandomFish();
+        this.fishingGameElement.style.display = 'block';
+        this.updateFishingGame();
+    }
+
+    updateFishingGame() {
+        if (!this.fishingGame.isActive) return;
+
+        // Update struggle timer
+        this.fishingGame.struggleTimer++;
+        if (this.fishingGame.struggleTimer >= this.fishingGame.struggleInterval) {
+            this.fishingGame.struggleTimer = 0;
+            // Check if fish struggles based on its rarity
+            if (Math.random() < this.fishingGame.currentFish.struggleChance) {
+                this.fishingGame.speed = this.fishingGame.struggleSpeed;
+                this.fishingGame.direction *= -1; // Reverse direction
+                this.showNotification('The fish is struggling!');
+            } else {
+                this.fishingGame.speed = this.fishingGame.normalSpeed;
+            }
+        }
+
+        // Update progress
+        this.fishingGame.progress += this.fishingGame.speed * this.fishingGame.direction;
+
+        // Reverse direction at boundaries
+        if (this.fishingGame.progress >= 1) {
+            this.fishingGame.progress = 1;
+            this.fishingGame.direction = -1;
+        } else if (this.fishingGame.progress <= 0) {
+            this.fishingGame.progress = 0;
+            this.fishingGame.direction = 1;
+        }
+
+        // Update catch progress if reeling
+        if (this.fishingGame.isReeling) {
+            const inZone = this.fishingGame.progress >= this.fishingGame.targetZone && 
+                          this.fishingGame.progress <= (this.fishingGame.targetZone + this.fishingGame.zoneWidth);
+
+            if (inZone) {
+                // Increase catch progress
+                this.fishingGame.catchProgress += this.fishingGame.catchSpeed;
+                
+                // Check if fish is caught
+                if (this.fishingGame.catchProgress >= this.fishingGame.maxCatchProgress) {
+                    // Success! Catch the fish
+                    this.cargo.fish.push(this.fishingGame.currentFish);
+                    this.updateCargoDisplay();
+                    this.showNotification(`You caught a ${this.fishingGame.currentFish.rarity} ${this.fishingGame.currentFish.name}!`);
+                    
+                    // End fishing game
+                    this.fishingGame.isActive = false;
+                    this.fishingGameElement.style.display = 'none';
+                }
+            } else {
+                // Decrease catch progress when out of zone
+                this.fishingGame.catchProgress -= this.fishingGame.escapeSpeed;
+                if (this.fishingGame.catchProgress < 0) {
+                    this.fishingGame.catchProgress = 0;
+                }
+            }
+        }
+
+        // Update UI
+        const barWidth = 300;
+        const zoneStart = this.fishingGame.targetZone * barWidth;
+        const zoneEnd = (this.fishingGame.targetZone + this.fishingGame.zoneWidth) * barWidth;
+        const markerPosition = this.fishingGame.progress * barWidth;
+        const catchProgress = (this.fishingGame.catchProgress / this.fishingGame.maxCatchProgress) * barWidth;
+
+        this.fishingGameElement.innerHTML = `
+            <h2 style="margin-top: 0; color: #ffd700;">Fishing</h2>
+            <div style="margin: 20px 0;">
+                <div style="
+                    width: ${barWidth}px;
+                    height: 20px;
+                    background-color: #333;
+                    border-radius: 10px;
+                    position: relative;
+                    margin-bottom: 10px;
+                ">
+                    <div style="
+                        position: absolute;
+                        left: ${zoneStart}px;
+                        width: ${zoneEnd - zoneStart}px;
+                        height: 100%;
+                        background-color: #4CAF50;
+                        border-radius: 10px;
+                    "></div>
+                    <div style="
+                        position: absolute;
+                        left: ${markerPosition}px;
+                        width: 4px;
+                        height: 100%;
+                        background-color: #ffd700;
+                        transform: translateX(-50%);
+                    "></div>
+                </div>
+                <div style="
+                    width: ${barWidth}px;
+                    height: 20px;
+                    background-color: #333;
+                    border-radius: 10px;
+                    position: relative;
+                ">
+                    <div style="
+                        position: absolute;
+                        left: 0;
+                        width: ${catchProgress}px;
+                        height: 100%;
+                        background-color: #ffd700;
+                        border-radius: 10px;
+                        transition: width 0.1s linear;
+                    "></div>
+                    <div style="
+                        position: absolute;
+                        width: 100%;
+                        text-align: center;
+                        color: #000;
+                        font-weight: bold;
+                        line-height: 20px;
+                        text-shadow: 0 0 2px #fff;
+                    ">${Math.round(this.fishingGame.catchProgress)}%</div>
+                </div>
+            </div>
+            <div style="color: #888; font-size: 12px;">
+                Hold F to reel in when the marker is in the green zone
+            </div>
+            <div style="color: #ffd700; font-size: 12px; margin-top: 10px;">
+                Current Fish: ${this.fishingGame.currentFish.name} (${this.fishingGame.currentFish.rarity})
+            </div>
+            <div style="color: #4CAF50; font-size: 12px; margin-top: 5px;">
+                Progress: ${Math.round(this.fishingGame.catchProgress)}%
+            </div>
+        `;
+    }
+
+    getRandomFish() {
+        // Weighted random selection based on rarity
+        const weights = {
+            common: 0.5,
+            uncommon: 0.25,
+            rare: 0.15,
+            legendary: 0.1
+        };
+
+        const roll = Math.random();
+        let cumulativeWeight = 0;
+        let selectedRarity = 'common';
+
+        for (const [rarity, weight] of Object.entries(weights)) {
+            cumulativeWeight += weight;
+            if (roll <= cumulativeWeight) {
+                selectedRarity = rarity;
+                break;
+            }
+        }
+
+        // Filter fish by rarity and select random one
+        const fishOfRarity = this.fishingGame.fishTypes.filter(fish => fish.rarity === selectedRarity);
+        return fishOfRarity[Math.floor(Math.random() * fishOfRarity.length)];
+    }
+
+    sellFish() {
+        if (this.cargo.fish.length === 0) {
+            this.showNotification('You have no fish to sell!');
+            return;
+        }
+
+        // Calculate total value of fish
+        const totalValue = this.cargo.fish.reduce((sum, fish) => sum + fish.value, 0);
+        
+        // Add gold and clear fish
+        this.gold += totalValue;
+        this.cargo.fish = [];
+        
+        // Update displays
+        this.updateGoldDisplay();
+        this.updateCargoDisplay();
+        
+        // Show notification
+        this.showNotification(`Sold all fish for ${totalValue} gold!`);
     }
 }
 
